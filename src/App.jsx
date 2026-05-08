@@ -9,7 +9,7 @@ import TrustSection from './components/TrustSection'
 import Footer from './components/Footer'
 import MobileNav from './components/MobileNav'
 import LoadingScreen from './components/LoadingScreen'
-import React, { Suspense, lazy } from 'react'
+import React from 'react'
 import Login from './pages/auth/Login'
 import Signup from './pages/auth/Signup'
 import ForgotPassword from './pages/auth/ForgotPassword'
@@ -19,8 +19,8 @@ import News from './pages/News'
 import Categories from './pages/Categories'
 import Villages from './pages/Villages'
 import Videos from './pages/Videos'
-const Report = lazy(() => import('./pages/Report'))
-const UploadVideo = lazy(() => import('./pages/UploadVideo'))
+import Report from './pages/Report.jsx'
+import UploadVideo from './pages/UploadVideo.jsx'
 import Trending from './pages/Trending'
 import AboutUs from './pages/AboutUs'
 import ContactUs from './pages/ContactUs'
@@ -32,8 +32,15 @@ import CategoryTopic from './pages/CategoryTopic'
 import Profile from './pages/ProfilePage'
 import OnboardingProfile from './pages/OnboardingProfile'
 
-const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'))
-const ModerationQueue = lazy(() => import('./pages/admin/ModerationQueue'))
+import AdminOverview from './pages/admin/AdminOverview'
+import AdminNewsRequests from './pages/admin/AdminNewsRequests'
+import AdminAnalytics from './pages/admin/AdminAnalytics'
+import AdminBreakingAlerts from './pages/admin/AdminBreakingAlerts'
+import AdminVillages from './pages/admin/AdminVillages'
+import AdminUsers from './pages/admin/AdminUsers'
+import AdminReports from './pages/admin/AdminReports'
+import AdminRevenue from './pages/admin/AdminRevenue'
+import AdminSettings from './pages/admin/AdminSettings'
 
 function HomeContent({ scrolled }) {
   return (
@@ -96,8 +103,8 @@ function App() {
       { path: '/category/:slug', element: <CategoryTopic /> },
       { path: '/villages', element: <Villages /> },
       { path: '/videos', element: <Videos /> },
-      { path: '/report', element: <RequireAuth><Suspense fallback={<div className="p-6">Loading...</div>}><Report /></Suspense></RequireAuth> },
-      { path: '/upload-video', element: <RequireAuth><Suspense fallback={<div className="p-6">Loading...</div>}><UploadVideo /></Suspense></RequireAuth> },
+      { path: '/report', element: <RequireAuth><Report /></RequireAuth> },
+      { path: '/upload-video', element: <RequireAuth><UploadVideo /></RequireAuth> },
       { path: '/profile', element: <RequireAuth><Profile /></RequireAuth> },
       { path: '/onboarding', element: <RequireAuth><OnboardingProfile /></RequireAuth> },
       { path: '/trending', element: <Trending /> },
@@ -122,8 +129,15 @@ function App() {
           </RequireAdmin>
         ),
         children: [
-          { index: true, element: <Suspense fallback={<div className="p-6">Loading admin...</div>}><AdminDashboard /></Suspense> },
-          { path: 'moderation', element: <Suspense fallback={<div className="p-6">Loading admin...</div>}><ModerationQueue /></Suspense> },
+          { index: true, element: <AdminOverview /> },
+          { path: 'news-requests', element: <AdminNewsRequests /> },
+          { path: 'breaking-alerts', element: <AdminBreakingAlerts /> },
+          { path: 'villages', element: <AdminVillages /> },
+          { path: 'users', element: <AdminUsers /> },
+          { path: 'reports', element: <AdminReports /> },
+          { path: 'analytics', element: <AdminAnalytics /> },
+          { path: 'revenue', element: <AdminRevenue /> },
+          { path: 'settings', element: <AdminSettings /> },
         ],
       },
     ],

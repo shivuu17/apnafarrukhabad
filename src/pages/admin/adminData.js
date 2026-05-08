@@ -1,6 +1,6 @@
 export const adminSections = [
   { id: 'overview', label: 'Dashboard Overview' },
-  { id: 'moderation', label: 'Content Moderation' },
+  { id: 'review', label: 'Content Review' },
   { id: 'villages', label: 'Village / Block' },
   { id: 'breaking', label: 'Breaking News' },
   { id: 'ads', label: 'Banner / Ads' },
@@ -24,7 +24,7 @@ export const topStats = [
   { label: 'Site Visits (today)', value: '86.3k', delta: '+22.4%', tone: 'cyan', trend: [45, 52, 55, 61, 68, 74, 81] },
 ]
 
-export const moderationPosts = [
+export const reviewPosts = [
   {
     id: 'post_001',
     thumbnail: 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=800&q=80',
