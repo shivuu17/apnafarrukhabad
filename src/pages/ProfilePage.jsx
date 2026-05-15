@@ -1,23 +1,8 @@
-import { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
-import { useNavigate } from 'react-router-dom'
-import {
-  AtSign,
-  Building2,
-  Check,
-  CheckCircle2,
-  Edit2,
-  Info,
-  Loader2,
-  Mail,
-  MapPin,
-  Phone,
-  ShieldAlert,
-  ShieldCheck,
-  UserCircle2,
-  X,
-  XCircle,
-} from 'lucide-react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import MobileNav from '../components/MobileNav'
@@ -25,29 +10,66 @@ import SectionHeader from '../components/SectionHeader'
 import useAuth from '../hooks/useAuth'
 import { Input, TextArea } from '../components/ui/FormInputs'
 import { Button } from '../components/ui/Button'
+import { Avatar } from '../components/Layout'
+import cloudinary from '../services/cloudinary.service'
 import useLocation from '../hooks/useLocation'
 import LocationPermissionModal from '../components/location/LocationPermissionModal'
 import LocationConfirmCard from '../components/location/LocationConfirmCard'
 import LocationPicker from '../components/location/LocationPicker'
 import { BottomSheet, Modal } from '../components/ui/Modals'
+import { CheckCircle2, XCircle, Loader2 } from 'lucide-react'
 import { buildDisplayName } from '../services/locationService'
-import * as mediationService from '../services/mediaModeration.service'
 
 function ProfilePage() {
-  const { user, updateProfile, checkUsernameAvailability, sendEmailVerificationCode, verifyEmailCode } = useAuth()
-  const navigate = useNavigate()
+  const { user, updateProfile, checkUsernameAvailability } = useAuth()
+  const [editing, setEditing] = useState(false)
 
-  const initialLocation = user?.locationName
+  const roles = [
+    'Citizen Reporter',
+    'Farmer',
+    'Student',
+    'Teacher',
+    'Shopkeeper',
+    'Social Worker',
+    'Journalist',
+    'Business Owner',
+    'Other'
+  ]
+
+  const interests = [
+    'Local News',
+    'Farming',
+    'Education',
+    'Weather',
+    'Health',
+    'Sports',
+    'Community Issues',
+    'Business',
+    'Events'
+  ]
+
+  const schema = z.object({
+    name: z.string().min(2, 'Enter your full name'),
+    username: z.string().min(3, 'Choose a username').regex(/^@?\w{3,}$/, 'Username must be letters, numbers or underscore'),
+    village: z.string().min(1, 'Select your village'),
+    block: z.string().optional(),
+    district: z.string().optional(),
+    role: z.string().min(1, 'Select one role'),
+    bio: z.string().max(160).optional(),
+    interests: z.array(z.string()).optional(),
+  })
+
+  const initialLocation = useMemo(() => (user?.locationName
     ? {
-        name: user.locationName,
-        type: user.locationType || 'Village',
-        district: user.district || 'Farrukhabad',
-        tehsil: user.tehsil || user.district || 'Farrukhabad',
-        state: user.state || 'Uttar Pradesh',
-        lat: user.lat ?? null,
-        lng: user.lng ?? null,
-      }
-    : null
+      name: user.locationName,
+      type: user.locationType || 'Village',
+      district: user.district || 'Farrukhabad',
+      tehsil: user.tehsil || user.district || 'Farrukhabad',
+      state: user.state || 'Uttar Pradesh',
+      lat: user.lat ?? null,
+      lng: user.lng ?? null,
+    }
+    : null), [user])
 
   const {
     location,
@@ -60,59 +82,38 @@ function ProfilePage() {
     matchingLocations,
   } = useLocation(initialLocation)
 
-  const [editing, setEditing] = useState(false)
+  const [avatarPreview, setAvatarPreview] = useState(user?.avatar || '')
+  const [uploading, setUploading] = useState(false)
   const [usernameStatus, setUsernameStatus] = useState('idle')
+  const [locationConfirmed, setLocationConfirmed] = useState(Boolean(user?.locationVerified || initialLocation))
   const [showPermissionModal, setShowPermissionModal] = useState(!initialLocation)
   const [showLocationPicker, setShowLocationPicker] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
-  const [showEmailVerification, setShowEmailVerification] = useState(false)
-  const [emailCodeSent, setEmailCodeSent] = useState(false)
-  const [emailVerifying, setEmailVerifying] = useState(false)
-  const [showReportsModal, setShowReportsModal] = useState(false)
-  const [userReports, setUserReports] = useState([])
-  const [form, setForm] = useState({
+
+  const defaultValues = useMemo(() => ({
     name: user?.name || '',
-    email: user?.email || '',
-    phone: user?.phone || '',
     username: user?.username || '',
     village: user?.village || initialLocation?.name || '',
     block: user?.block || '',
     district: user?.district || initialLocation?.district || 'Farrukhabad',
+    role: user?.role || '',
     bio: user?.bio || '',
-    interests: Array.isArray(user?.interests) ? user.interests.join(', ') : '',
-  })
+    interests: user?.interests || [],
+    avatar: user?.avatar || '',
+  }), [user, initialLocation])
 
-  const emailVerified = Boolean(user?.emailVerified)
+  const {
+    register,
+    handleSubmit,
+    watch,
+    setValue,
+    formState: { errors, isSubmitting }
+  } = useForm({ resolver: zodResolver(schema), defaultValues })
 
-  const reportSummary = {
-    total: userReports.length,
-    pending: userReports.filter((report) => report.statusType === 'pending').length,
-    approved: userReports.filter((report) => report.statusType === 'approved').length,
-  }
-
-  const details = [
-    { key: 'name', label: 'Full Name', value: user?.name || '', placeholder: 'Enter your full name', icon: UserCircle2 },
-    { key: 'email', label: 'Email Address', value: user?.email || '', placeholder: 'you@example.com', icon: Mail },
-    { key: 'phone', label: 'Mobile Number', value: user?.phone || '', placeholder: 'Enter mobile number', icon: Phone },
-    { key: 'username', label: 'Username', value: user?.username ? `@${String(user.username).replace(/^@/, '')}` : '', placeholder: '@ravikumar', icon: AtSign },
-    { key: 'village', label: 'Village', value: user?.village || '', placeholder: 'Select your village', icon: MapPin },
-    { key: 'block', label: 'Block / Area', value: user?.block || '', placeholder: 'Optional', icon: Building2 },
-    { key: 'district', label: 'District', value: user?.district || 'Farrukhabad', placeholder: 'Farrukhabad', icon: MapPin },
-  ]
-
-  useEffect(() => {
-    setForm({
-      name: user?.name || '',
-      email: user?.email || '',
-      phone: user?.phone || '',
-      username: user?.username || '',
-      village: user?.village || initialLocation?.name || '',
-      block: user?.block || '',
-      district: user?.district || initialLocation?.district || 'Farrukhabad',
-      bio: user?.bio || '',
-      interests: Array.isArray(user?.interests) ? user.interests.join(', ') : '',
-    })
-  }, [user, initialLocation])
+  const bio = watch('bio') || ''
+  const usernameValue = watch('username') || ''
+  const selectedRole = watch('role')
+  const selectedInterests = watch('interests') || []
 
   useEffect(() => {
     const media = window.matchMedia('(max-width: 640px)')
@@ -123,13 +124,15 @@ function ProfilePage() {
   }, [])
 
   useEffect(() => {
-    if (location) setShowPermissionModal(false)
-  }, [location])
+    if (location) {
+      setValue('village', location.name, { shouldValidate: true })
+      setValue('district', location.district || 'Farrukhabad', { shouldValidate: true })
+      setShowPermissionModal(false)
+    }
+  }, [location, setValue])
 
   useEffect(() => {
-    if (!editing) return
-
-    const normalized = String(form.username || '').trim().replace(/^@/, '').toLowerCase()
+    const normalized = String(usernameValue || '').trim().replace(/^@/, '').toLowerCase()
     const current = String(user?.username || '').trim().replace(/^@/, '').toLowerCase()
 
     if (!normalized || normalized.length < 3) {
@@ -145,59 +148,46 @@ function ProfilePage() {
     setUsernameStatus('checking')
     const timer = window.setTimeout(async () => {
       try {
-        const available = await checkUsernameAvailability(normalized)
-        setUsernameStatus(available ? 'available' : 'taken')
-      } catch {
+        const isAvailable = await checkUsernameAvailability(normalized)
+        setUsernameStatus(isAvailable ? 'available' : 'taken')
+      } catch (err) {
         setUsernameStatus('error')
       }
     }, 400)
 
     return () => window.clearTimeout(timer)
-  }, [editing, form.username, user?.username, checkUsernameAvailability])
+  }, [usernameValue, user?.username, checkUsernameAvailability])
 
-  const handleChange = (key, value) => setForm((state) => ({ ...state, [key]: value }))
-
-  const saveChanges = async () => {
-    if (usernameStatus === 'checking') {
-      alert('Please wait while username availability is being checked')
-      return
-    }
-
-    if (usernameStatus === 'taken') {
-      alert('Username is already taken')
-      return
-    }
-
+  const onFile = async (file) => {
+    if (!file) return
+    setUploading(true)
     try {
-      await updateProfile({
-        name: form.name,
-        email: form.email,
-        phone: form.phone,
-        username: String(form.username || '').replace(/^@/, ''),
-        village: form.village,
-        block: form.block,
-        district: form.district || 'Farrukhabad',
-        bio: form.bio,
-        interests: String(form.interests || '')
-          .split(',')
-          .map((item) => item.trim())
-          .filter(Boolean),
-      })
-      setEditing(false)
-    } catch (error) {
+      const res = await cloudinary.uploadImage(file)
+      setAvatarPreview(res.secureUrl)
+      setValue('avatar', res.secureUrl)
+    } catch (err) {
       // eslint-disable-next-line no-console
-      console.error('Failed to save profile', error)
-      alert(error?.message || 'Failed to save')
+      console.error('Upload failed', err)
+      alert(err.message || 'Upload failed')
+    } finally {
+      setUploading(false)
     }
+  }
+
+  const handleDrop = (e) => {
+    e.preventDefault()
+    const f = e.dataTransfer.files?.[0]
+    if (f) onFile(f)
   }
 
   const handleAllowLocation = async () => {
     try {
       await detectLocation()
+      setLocationConfirmed(false)
       setShowPermissionModal(false)
       setShowLocationPicker(false)
-    } catch {
-      // Manual choice stays available.
+    } catch (err) {
+      // stay open for retry/manual fallback
     }
   }
 
@@ -208,407 +198,319 @@ function ProfilePage() {
 
   const handleSelectLocation = (nextLocation) => {
     confirmLocation(nextLocation)
+    setLocationConfirmed(false)
     setShowLocationPicker(false)
   }
 
-  const handleSaveLocation = async () => {
+  const handleConfirmLocation = () => {
     if (!location) return
+    setLocationConfirmed(true)
+    setShowLocationPicker(false)
+  }
 
+  const onSubmit = async (values) => {
+    if (usernameStatus === 'checking') return alert('Please wait while username availability is being checked')
+    if (usernameStatus === 'taken') return alert('Username already taken')
+    if (!location || !locationConfirmed) return alert('Please confirm your location before continuing')
     try {
       await updateProfile({
-        village: location.name,
+        name: values.name,
+        username: values.username.replace(/^@/, ''),
+        village: values.village,
+        block: values.block,
+        district: values.district || 'Farrukhabad',
         locationName: location.name,
         locationType: location.type,
-        district: location.district,
         tehsil: location.tehsil,
         state: location.state,
         lat: location.lat,
         lng: location.lng,
         locationVerified: true,
+        role: values.role,
+        bio: values.bio,
+        interests: values.interests || [],
+        avatar: values.avatar || avatarPreview || '',
+        profileCompleted: true
       })
-      alert('Location updated')
-      setShowLocationPicker(false)
-    } catch (error) {
-      alert(error?.message || 'Failed to update location')
+      setEditing(false)
+      alert('Profile saved')
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error(err)
+      alert(err.message || 'Failed to save profile')
     }
   }
 
-  const handleEditProfile = () => {
-    navigate('/onboarding')
+  const resetForm = () => {
+    // restore form defaults and previews
+    setValue('name', defaultValues.name)
+    setValue('username', defaultValues.username)
+    setValue('village', defaultValues.village)
+    setValue('block', defaultValues.block)
+    setValue('district', defaultValues.district)
+    setValue('role', defaultValues.role)
+    setValue('bio', defaultValues.bio)
+    setValue('interests', defaultValues.interests)
+    setValue('avatar', defaultValues.avatar)
+    setAvatarPreview(user?.avatar || '')
+    setLocationConfirmed(Boolean(user?.locationVerified || initialLocation))
+    setEditing(false)
   }
-
-  const loadUserReports = async () => {
-    try {
-      const [pending, approved] = await Promise.all([
-        mediationService.getPendingSubmissions(),
-        mediationService.getApprovedSubmissions(),
-      ])
-
-      const normalizeValue = (value) => String(value || '').trim().toLowerCase()
-      const userEmail = normalizeValue(user?.email)
-      const userPhone = normalizeValue(user?.phone)
-      const userName = normalizeValue(user?.name)
-
-      const belongsToCurrentUser = (report) => {
-        const reportEmail = normalizeValue(report.email)
-        const reportPhone = normalizeValue(report.phone)
-        const reportName = normalizeValue(report.reporterName)
-
-        return Boolean(
-          (userEmail && reportEmail && reportEmail === userEmail) ||
-          (userPhone && reportPhone && reportPhone === userPhone) ||
-          (userName && reportName && reportName === userName)
-        )
-      }
-
-      const currentUserPending = (pending || []).filter(belongsToCurrentUser)
-      const currentUserApproved = (approved || []).filter(belongsToCurrentUser)
-
-      const allReports = [...currentUserPending, ...currentUserApproved].map((report) => ({
-        ...report,
-        statusType: currentUserPending.some((pendingReport) => pendingReport.id === report.id) ? 'pending' : 'approved',
-      }))
-
-      setUserReports(allReports)
-      setShowReportsModal(true)
-    } catch (error) {
-      console.error('Failed to load reports:', error)
-      setUserReports([])
-      setShowReportsModal(true)
-    }
-  }
-
-  const handleSendEmailCode = async () => {
-    try {
-      setEmailVerifying(true)
-      await sendEmailVerificationCode(user?.email)
-      setEmailCodeSent(true)
-      alert('Verification link sent to your email')
-    } catch (error) {
-      alert(error?.message || 'Failed to send code')
-    } finally {
-      setEmailVerifying(false)
-    }
-  }
-
-  const handleCheckEmailVerification = async () => {
-    try {
-      setEmailVerifying(true)
-      await verifyEmailCode(user?.email)
-      alert('Your email is verified')
-      setShowEmailVerification(false)
-      setEmailCodeSent(false)
-    } catch (error) {
-      alert(error?.message || 'Email is not verified yet')
-    } finally {
-      setEmailVerifying(false)
-    }
-  }
-
-  useEffect(() => {
-    if (!showEmailVerification || !emailCodeSent || emailVerified) return
-
-    const timer = window.setInterval(async () => {
-      try {
-        await verifyEmailCode(user?.email)
-        alert('Your email is verified')
-        setShowEmailVerification(false)
-        setEmailCodeSent(false)
-      } catch {
-        // Still waiting for user to click the verification link in email.
-      }
-    }, 5000)
-
-    return () => window.clearInterval(timer)
-  }, [showEmailVerification, emailCodeSent, emailVerified, user?.email, verifyEmailCode])
-
-  
 
   return (
     <div className="min-h-screen flex flex-col bg-[#f7f8f4]">
       <Header scrolled={false} />
-      <main className="flex-1 px-3 pb-10 pt-6 sm:px-4 sm:pb-12 md:px-6">
+      <main className={`flex-1 px-3 pt-6 sm:px-4 md:px-6 ${editing ? 'pb-28 sm:pb-32' : 'pb-10 sm:pb-12'}`}>
         <div className="mx-auto max-w-3xl">
           <SectionHeader title="My Profile" subtitle="View your account details" />
 
-          <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="mt-6 rounded-2xl border border-slate-200 bg-white shadow-soft">
-            <div className="flex flex-col gap-4 border-b border-slate-100 bg-emerald-50/70 px-5 py-5 sm:flex-row sm:items-start sm:justify-between sm:px-6">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Account</p>
-                <h2 className="mt-1 text-xl font-extrabold text-slate-900 sm:text-2xl">{user?.name || 'User'}</h2>
-                <p className="mt-1 break-all text-sm text-slate-600">{user?.email || 'No email available'}</p>
-                <p className="mt-2 text-xs text-slate-500">Edit details in onboarding and keep your report status in the profile view.</p>
-              </div>
-              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-                <Button variant="outline" size="sm" onClick={handleEditProfile}>
-                  <Edit2 className="mr-2 h-4 w-4" /> Edit My Profile
-                </Button>
-                <Button variant="primary" size="sm" onClick={loadUserReports}>
-                  <Info className="mr-2 h-4 w-4" /> View News Status
-                </Button>
+          <div className="mt-6 rounded-2xl">
+            <div className="rounded-2xl border border-slate-200 bg-white shadow-soft p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase text-emerald-700">Account</p>
+                  <h2 className="mt-1 text-xl font-extrabold text-slate-900">{user?.name || 'User'}</h2>
+                  <p className="mt-1 text-sm text-slate-600">{user?.email || 'No email'}</p>
+                </div>
+                <div className="flex gap-2">
+                  {!editing ? (
+                    <Button variant="outline" size="sm" onClick={() => setEditing(true)}>Edit My Profile</Button>
+                  ) : (
+                    <>
+                      <Button type="submit" form="profile-edit-form" variant="primary" size="sm" loading={isSubmitting}>Save</Button>
+                      <Button type="button" variant="outline" size="sm" onClick={resetForm}>Cancel</Button>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
+              {editing && (
+                <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mt-4 rounded-[24px] bg-white p-4 border border-slate-200">
+                  <form id="profile-edit-form" onSubmit={handleSubmit(onSubmit)}>
+                  <div className="max-w-xl mx-auto">
+                    <div className="text-center">
+                      <p className="text-sm font-semibold text-neutral-500">Edit profile</p>
+                      <h1 className="mt-2 text-lg font-extrabold text-[#06391C]">Update your account details</h1>
+                    </div>
 
-            <div className="grid gap-3 p-4 sm:grid-cols-2 sm:p-6">
-              {details.map((item) => {
-                const Icon = item.icon
-                return (
-                  <div key={item.label} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                    <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      <Icon size={14} /> {item.label}
-                    </p>
-                    {!editing ? (
-                      <p className={`mt-2 break-all text-base font-semibold ${item.value ? 'text-slate-900' : 'text-slate-400'}`}>
-                        {item.value || item.placeholder}
-                      </p>
-                    ) : (
-                      <div className="mt-2">
-                        <Input value={form[item.key] || ''} placeholder={item.placeholder} onChange={(event) => handleChange(item.key, event.target.value)} disabled={item.key === 'district'} error={item.key === 'username' && usernameStatus === 'taken' ? 'Username is already taken' : ''} />
-                        {item.key === 'username' && (
-                          <div className="mt-1 flex items-center gap-2 text-sm">
-                            {usernameStatus === 'checking' && <><Loader2 className="h-4 w-4 animate-spin text-slate-400" /><span className="text-slate-500">Checking username...</span></>}
-                            {usernameStatus === 'available' && <><CheckCircle2 className="h-4 w-4 text-emerald-600" /><span className="text-emerald-700">Username is available</span></>}
-                            {usernameStatus === 'taken' && <><XCircle className="h-4 w-4 text-rose-600" /><span className="text-rose-700">Username is not available</span></>}
-                            {usernameStatus === 'error' && <span className="text-slate-500">Could not check availability right now</span>}
-                            {usernameStatus === 'idle' && <span className="text-slate-500">example: @ravikumar</span>}
+                    <div className="mt-4 grid gap-6 sm:grid-cols-2">
+                    <div className="col-span-2 sm:col-span-2 flex flex-col items-center">
+                      <div onDrop={handleDrop} onDragOver={(e) => e.preventDefault()} className="flex flex-col items-center">
+                        <div className="rounded-full p-1 bg-gradient-to-br from-[#178A49] to-[#0F6B35]">
+                          <div className="rounded-full bg-white p-2">
+                            <Avatar src={avatarPreview} name={watch('name') || user?.name || 'User'} size="xl" />
                           </div>
+                        </div>
+                        <div className="mt-3 flex items-center gap-3">
+                          <label className="inline-flex">
+                            <input type="file" accept="image/*" className="hidden" onChange={(e) => onFile(e.target.files?.[0])} />
+                            <Button type="button" variant="outline">{uploading ? 'Uploading...' : 'Upload photo'}</Button>
+                          </label>
+                          <button type="button" onClick={() => { setAvatarPreview(''); setValue('avatar', '') }} className="text-sm text-neutral-500">Remove</button>
+                        </div>
+                        <p className="mt-2 text-xs text-neutral-500">Add a clear profile photo to build trust.</p>
+                      </div>
+                    </div>
+
+                    <div className="col-span-2 sm:col-span-1">
+                      <Input label="Full Name" placeholder="Enter your full name" {...register('name')} error={errors.name?.message} />
+                    </div>
+
+                    <div className="col-span-2 sm:col-span-1">
+                      <Input
+                        label="Username"
+                        placeholder="Choose a unique username"
+                        {...register('username')}
+                        error={errors.username?.message || (usernameStatus === 'taken' ? 'Username already taken' : '')}
+                      />
+                      <div className="mt-1 flex items-center gap-2 text-sm">
+                        {usernameStatus === 'checking' && (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
+                            <span className="text-slate-500">Checking username...</span>
+                          </>
+                        )}
+                        {usernameStatus === 'available' && (
+                          <>
+                            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                            <span className="text-emerald-700">Username is available</span>
+                          </>
+                        )}
+                        {usernameStatus === 'taken' && (
+                          <>
+                            <XCircle className="h-4 w-4 text-rose-600" />
+                            <span className="text-rose-700">Username is not available</span>
+                          </>
+                        )}
+                        {usernameStatus === 'error' && (
+                          <span className="text-slate-500">Could not check availability right now</span>
+                        )}
+                        {usernameStatus === 'idle' && (
+                          <span className="text-slate-500">example: @ravikumar</span>
                         )}
                       </div>
-                    )}
-                  </div>
-                )
-              })}
+                    </div>
 
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 sm:col-span-2">
-                <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500"><Info size={14} /> Bio</p>
-                {!editing ? <p className={`mt-2 text-base ${user?.bio ? 'text-slate-900' : 'text-slate-400'}`}>{user?.bio || 'Tell us about yourself...'}</p> : <div className="mt-2"><TextArea value={form.bio} onChange={(event) => handleChange('bio', event.target.value)} placeholder="Sharing local updates from my village." maxLength={160} rows={4} /></div>}
-              </div>
+                    <input type="hidden" {...register('village')} />
 
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 sm:col-span-2">
-                <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500"><AtSign size={14} /> Interests</p>
-                {!editing ? <p className={`mt-2 text-base ${Array.isArray(user?.interests) && user.interests.length ? 'text-slate-900' : 'text-slate-400'}`}>{Array.isArray(user?.interests) && user.interests.length ? user.interests.join(', ') : 'No interests added'}</p> : <div className="mt-2"><Input value={form.interests} onChange={(event) => handleChange('interests', event.target.value)} placeholder="Local News, Farming, Education" helperText="Add comma separated interests" /></div>}
-              </div>
+                    <div className="col-span-2 sm:col-span-1">
+                      <Input label="Block / Area" placeholder="Optional" {...register('block')} error={errors.block?.message} />
+                    </div>
 
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 sm:col-span-2">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Verification Status</p>
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                  
-                  <div className="rounded-lg border border-slate-200 bg-white p-3">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Email</p>
-                    <div className="mt-2 flex items-center justify-between gap-3">
-                      <p className={`text-sm font-semibold ${emailVerified ? 'text-emerald-700' : 'text-amber-700'}`}>{emailVerified ? 'Verified' : 'Pending verification'}</p>
-                      {emailVerified ? <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700"><ShieldCheck size={14} /> Verified</span> : <Button type="button" size="xs" variant="outline" onClick={() => setShowEmailVerification(true)}>Verify email</Button>}
+                    <div className="col-span-2 sm:col-span-1">
+                      <Input label="District" placeholder="Farrukhabad" {...register('district')} disabled />
+                    </div>
+
+                    <div className="col-span-2">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Your location</p>
+                          <h2 className="mt-1 text-lg font-extrabold text-slate-900">{location ? buildDisplayName(location) : 'Choose your village or town'}</h2>
+                          <p className="mt-1 text-sm text-slate-600">We use this to show local stories and improve report accuracy. Only village or town level is public.</p>
+                        </div>
+                        <Button type="button" variant="outline" size="sm" onClick={() => setShowLocationPicker(true)}>Change</Button>
+                      </div>
+
+                      <div className="mt-3">
+                        {location ? (
+                          <LocationConfirmCard
+                            location={location}
+                            onConfirm={handleConfirmLocation}
+                            onChange={() => setShowLocationPicker(true)}
+                            loading={isDetecting}
+                            mobile={isMobile}
+                          />
+                        ) : (
+                          <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-600">No location selected yet. Tap Change or allow access when prompted.</div>
+                        )}
+                      </div>
+
+                      {locationError && <p className="mt-3 text-sm font-semibold text-rose-700">{locationError}</p>}
+
+                      <p className="mt-2 text-xs font-semibold text-amber-700">{locationConfirmed ? 'Location confirmed.' : 'Please confirm your detected or selected location.'}</p>
+                    </div>
+
+                    <div className="col-span-2">
+                      <label className="block text-sm font-semibold text-neutral-800 mb-2">Select a role</label>
+                      <div className="flex flex-wrap gap-2">
+                        {roles.map((r) => (
+                          <button key={r} type="button" onClick={() => setValue('role', r)} className={`px-3 py-2 rounded-full border ${selectedRole === r ? 'bg-[#0F6B35] text-white' : 'bg-white text-neutral-700'} hover:scale-105 transition`}>{r}</button>
+                        ))}
+                      </div>
+                      {errors.role && <p className="text-red-600 text-sm mt-1">{errors.role.message}</p>}
+                    </div>
+
+                    <div className="col-span-2">
+                      <label className="block text-sm font-semibold text-neutral-800 mb-2">Tell us about yourself</label>
+                      <TextArea placeholder="Sharing local updates from my village." rows={4} maxLength={160} {...register('bio')} error={errors.bio?.message} helperText={`${bio.length}/160`} />
+                    </div>
+
+                    <div className="col-span-2">
+                      <label className="block text-sm font-semibold text-neutral-800 mb-2">Topics you care about</label>
+                      <div className="flex flex-wrap gap-2">
+                        {interests.map((t) => {
+                          const active = selectedInterests.includes(t)
+                          return (
+                            <button key={t} type="button" onClick={() => {
+                              const current = new Set(selectedInterests)
+                              if (current.has(t)) current.delete(t)
+                              else current.add(t)
+                              setValue('interests', Array.from(current))
+                            }} className={`px-3 py-2 rounded-lg border ${active ? 'bg-[#178A49] text-white' : 'bg-white text-neutral-700'} hover:scale-105 transition`}>{t}</button>
+                          )
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="col-span-2 sm:col-span-1">
+                      <div className="rounded-lg border p-4 bg-white">
+                        <p className="text-sm font-semibold text-neutral-700">Trust</p>
+                        <div className="mt-3 flex items-center gap-3 text-sm text-neutral-600">
+                          <span className="inline-flex items-center gap-2">Phone verified <span className="text-green-600 font-bold">✓</span></span>
+                          <span className="inline-flex items-center gap-2">Email verified <span className="text-green-600 font-bold">✓</span></span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="col-span-2 sm:col-span-1">
+                      <div className="rounded-lg border p-4 bg-white">
+                        <p className="text-sm font-semibold text-neutral-700">Profile preview</p>
+                        <div className="mt-3 flex items-center gap-3">
+                          <Avatar src={avatarPreview} name={watch('name') || user?.name || 'User'} />
+                          <div>
+                            <div className="font-semibold text-neutral-900">{watch('name') || user?.name || 'Your name'}</div>
+                            <div className="text-sm text-neutral-500">@{(watch('username') || user?.username || 'username').replace(/^@/, '')}</div>
+                            <div className="text-sm text-neutral-500">{watch('village') || user?.village || 'Village'}</div>
+                            <div className="text-sm text-neutral-500 mt-1">{watch('role') || user?.role || 'Role'}</div>
+                          </div>
+                        </div>
+                        <div className="mt-3 text-sm text-neutral-600">{watch('bio') || 'Tell people why they should trust you.'}</div>
+                      </div>
+                    </div>
+
+                    <div className="col-span-2 flex items-center justify-between gap-4">
+                      <button type="button" onClick={() => { setEditing(false); }} className="text-neutral-700">Close</button>
+                      <div className="ml-auto">
+                        <Button type="submit" variant="primary" loading={isSubmitting}>Save profile</Button>
+                      </div>
                     </div>
                   </div>
                 </div>
-                {!emailVerified && <p className="mt-3 inline-flex items-center gap-2 text-xs font-semibold text-amber-700"><ShieldAlert size={14} /> Complete pending verification to increase trust and reach.</p>}
-              </div>
-            </div>
-          </motion.section>
+                </form>
+              </motion.div>
+            )}
+          </div>
 
-          <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }} className="mt-6 rounded-2xl border border-slate-200 bg-white shadow-soft">
-            <div className="flex items-start justify-between gap-4 border-b border-slate-100 bg-emerald-50/70 px-5 py-5 sm:px-6">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Location</p>
-                <h2 className="mt-1 text-xl font-extrabold text-slate-900">{location ? buildDisplayName(location) : 'Set your location'}</h2>
-                <p className="mt-1 break-all text-sm text-slate-600">Used for local reports, trust signals, and regional feeds.</p>
-              </div>
-              <Button variant="outline" size="sm" onClick={() => setShowLocationPicker(true)}>Change</Button>
-            </div>
+          <LocationPermissionModal
+            isOpen={showPermissionModal}
+            onClose={() => setShowPermissionModal(false)}
+            onAllow={handleAllowLocation}
+            onChooseManually={handleChooseLocationManually}
+            loading={isDetecting}
+            error={locationError}
+          />
 
-            <div className="p-4 sm:p-6">
-              {location ? <LocationConfirmCard location={location} onConfirm={handleSaveLocation} onChange={() => setShowLocationPicker(true)} loading={isDetecting} mobile={isMobile} /> : <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">No location selected yet. Tap Change or allow access when prompted.</div>}
-              {locationError && <p className="mt-3 text-sm font-semibold text-rose-700">{locationError}</p>}
-            </div>
-          </motion.section>
+          {showLocationPicker && (
+            <>
+              {isMobile ? (
+                <BottomSheet isOpen={showLocationPicker} onClose={() => setShowLocationPicker(false)} title="Choose location">
+                  <div className="space-y-4 pb-2">
+                    <LocationPicker
+                      query={searchQuery}
+                      onQueryChange={setSearchQuery}
+                      options={matchingLocations}
+                      onSelect={handleSelectLocation}
+                    />
+                    <Button type="button" variant="primary" fullWidth onClick={handleConfirmLocation} disabled={!location}>
+                      Use selected location
+                    </Button>
+                  </div>
+                </BottomSheet>
+              ) : (
+                <Modal isOpen={showLocationPicker} onClose={() => setShowLocationPicker(false)} title="Choose location" size="md">
+                  <div className="space-y-4">
+                    <LocationPicker
+                      query={searchQuery}
+                      onQueryChange={setSearchQuery}
+                      options={matchingLocations}
+                      onSelect={handleSelectLocation}
+                    />
+                    <div className="flex justify-end">
+                      <Button type="button" variant="primary" onClick={handleConfirmLocation} disabled={!location}>
+                        Use selected location
+                      </Button>
+                    </div>
+                  </div>
+                </Modal>
+              )}
+            </>
+          )}
 
-          <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }} className="mt-6 rounded-2xl border border-emerald-100 bg-white shadow-soft">
-            <div className="border-b border-emerald-100 bg-emerald-50/70 px-5 py-5 sm:px-6">
-              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">News status</p>
-              <h2 className="mt-1 text-xl font-extrabold text-slate-900">Your submitted news</h2>
-              <p className="mt-1 text-sm text-slate-600">Track only your own reports with an animated timeline.</p>
-            </div>
-
-            <div className="grid gap-3 p-4 sm:grid-cols-3 sm:p-6">
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Total</p>
-                <p className="mt-1 text-2xl font-black text-slate-900">{reportSummary.total}</p>
-              </div>
-              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Pending review</p>
-                <p className="mt-1 text-2xl font-black text-amber-800">{reportSummary.pending}</p>
-              </div>
-              <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Approved</p>
-                <p className="mt-1 text-2xl font-black text-emerald-800">{reportSummary.approved}</p>
-              </div>
-            </div>
-
-            <div className="px-4 pb-4 sm:px-6 sm:pb-6">
-              <Button variant="primary" onClick={loadUserReports} fullWidth>
-                View News Status Timeline
-              </Button>
-            </div>
-          </motion.section>
         </div>
       </main>
 
       {!editing && <Footer />}
       <MobileNav />
-
-      <LocationPermissionModal isOpen={showPermissionModal} onClose={() => setShowPermissionModal(false)} onAllow={handleAllowLocation} onChooseManually={handleChooseLocationManually} loading={isDetecting} error={locationError} />
-
-      {showLocationPicker && (
-        <>
-          {isMobile ? (
-            <BottomSheet isOpen={showLocationPicker} onClose={() => setShowLocationPicker(false)} title="Choose location">
-              <LocationPicker query={searchQuery} onQueryChange={setSearchQuery} options={matchingLocations} onSelect={handleSelectLocation} />
-            </BottomSheet>
-          ) : (
-            <Modal isOpen={showLocationPicker} onClose={() => setShowLocationPicker(false)} title="Choose location" size="md">
-              <LocationPicker query={searchQuery} onQueryChange={setSearchQuery} options={matchingLocations} onSelect={handleSelectLocation} />
-            </Modal>
-          )}
-        </>
-      )}
-
-      {/* Email Verification Modal */}
-      <Modal isOpen={showEmailVerification} onClose={() => { setShowEmailVerification(false); setEmailCodeSent(false); }} title="Verify Email" size="sm">
-        <div className="space-y-4">
-          {!emailCodeSent ? (
-            <>
-              <p className="text-sm text-slate-600">We'll send a verification link to <strong>{user?.email}</strong></p>
-              <Button onClick={handleSendEmailCode} variant="primary" fullWidth loading={emailVerifying}>
-                Send Verification Link
-              </Button>
-            </>
-          ) : (
-            <>
-              <p className="text-sm text-slate-600">Open your inbox and click the verification link. We will automatically check your verification status.</p>
-              <div className="flex gap-2">
-                <Button onClick={() => { setEmailCodeSent(false); }} variant="secondary" fullWidth>
-                  Back
-                </Button>
-                <Button onClick={handleCheckEmailVerification} variant="primary" fullWidth loading={emailVerifying}>
-                  Check status
-                </Button>
-              </div>
-              <button onClick={handleSendEmailCode} className="text-xs text-emerald-600 hover:text-emerald-700 font-semibold">
-                Didn't receive email? Resend link
-              </button>
-            </>
-          )}
-        </div>
-      </Modal>
-
-      <Modal isOpen={showReportsModal} onClose={() => setShowReportsModal(false)} title="News Status Timeline" size="lg">
-        <div className="space-y-4">
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-center">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Total news</p>
-              <p className="mt-1 text-2xl font-black text-slate-900">{reportSummary.total}</p>
-            </div>
-            <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-center">
-              <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Pending review</p>
-              <p className="mt-1 text-2xl font-black text-amber-800">{reportSummary.pending}</p>
-            </div>
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-center">
-              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Approved</p>
-              <p className="mt-1 text-2xl font-black text-emerald-800">{reportSummary.approved}</p>
-            </div>
-          </div>
-
-          {userReports.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center">
-              <Info size={28} className="mx-auto text-slate-400" />
-              <p className="mt-3 text-sm font-semibold text-slate-700">No submitted news found for this account</p>
-              <p className="mt-1 text-xs text-slate-500">Only your own submitted news will show here.</p>
-            </div>
-          ) : (
-            <div className="max-h-[420px] space-y-3 overflow-y-auto pr-1">
-              {userReports.map((report, index) => {
-                const isApproved = report.statusType === 'approved'
-                const steps = [
-                  {
-                    key: 'submitted',
-                    label: 'Submitted',
-                    detail: new Date(report.createdAt).toLocaleDateString(),
-                  },
-                  {
-                    key: 'review',
-                    label: 'Pending review',
-                    detail: isApproved ? 'Reviewed by admin' : 'Waiting for moderation',
-                  },
-                  {
-                    key: 'approved',
-                    label: 'Approved',
-                    detail: isApproved && report.approvedAt ? new Date(report.approvedAt).toLocaleDateString() : 'Approval pending',
-                  },
-                ]
-
-                return (
-                  <motion.div
-                    key={report.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: index * 0.06 }}
-                    className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <h4 className="truncate font-semibold text-slate-900">{report.title}</h4>
-                        <p className="mt-1 text-xs text-slate-600">{report.village || 'Unknown location'}</p>
-                      </div>
-                      <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${isApproved ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
-                        {isApproved ? 'Approved' : 'Pending review'}
-                      </span>
-                    </div>
-
-                    <div className="mt-4 space-y-3">
-                      {steps.map((step, stepIndex) => {
-                        const completed = stepIndex === 0 || (stepIndex === 1 && !isApproved) || (isApproved && stepIndex <= 2)
-                        const active = (!isApproved && stepIndex === 1) || (isApproved && stepIndex === 2)
-
-                        return (
-                          <div key={step.key} className="flex items-start gap-3">
-                            <div className="flex flex-col items-center">
-                              <motion.div
-                                animate={{ scale: active ? 1.08 : 1 }}
-                                transition={{ duration: 0.25 }}
-                                className={`flex h-8 w-8 items-center justify-center rounded-full border-2 text-xs font-black ${completed ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-slate-300 bg-white text-slate-400'}`}
-                              >
-                                {stepIndex + 1}
-                              </motion.div>
-                              {stepIndex < steps.length - 1 && (
-                                <motion.div
-                                  initial={{ scaleY: 0 }}
-                                  animate={{ scaleY: 1 }}
-                                  transition={{ duration: 0.25, delay: index * 0.04 + stepIndex * 0.05 }}
-                                  className={`mt-1 h-8 w-px origin-top ${completed ? 'bg-emerald-500' : 'bg-slate-200'}`}
-                                />
-                              )}
-                            </div>
-                            <div className="pb-3">
-                              <p className={`text-sm font-semibold ${completed ? 'text-slate-900' : 'text-slate-500'}`}>{step.label}</p>
-                              <p className="mt-0.5 text-xs text-slate-500">{step.detail}</p>
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </motion.div>
-                )
-              })}
-            </div>
-          )}
-
-          <Button type="button" variant="outline" onClick={() => setShowReportsModal(false)} fullWidth>
-            Close
-          </Button>
-        </div>
-      </Modal>
-
-      {/* reCAPTCHA container (phone verification removed) */}
     </div>
   )
 }

@@ -169,6 +169,13 @@ export const Avatar = ({ src, name, size = 'md', verified = false, className = '
     lg: 'w-12 h-12 text-lg',
     xl: 'w-16 h-16 text-xl'
   }
+  const pxSizes = {
+    xs: 24,
+    sm: 32,
+    md: 40,
+    lg: 48,
+    xl: 64
+  }
   const initials = name
     ?.split(' ')
     .map((n) => n[0])
@@ -182,6 +189,9 @@ export const Avatar = ({ src, name, size = 'md', verified = false, className = '
           src={src}
           alt={name}
           loading="lazy"
+          decoding="async"
+          width={pxSizes[size]}
+          height={pxSizes[size]}
           className={`${sizes[size]} rounded-full object-cover border-2 border-neutral-100`}
         />
       ) : (

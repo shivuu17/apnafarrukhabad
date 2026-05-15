@@ -197,7 +197,7 @@ function ApprovedCommunityUpdates({ items }) {
             <p className="text-base leading-7 text-slate-700 whitespace-pre-line">{selectedItem.description}</p>
 
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-sm text-slate-600">This news card opens a full detail view with the original image and description.</p>
+              
               <button
                 type="button"
                 onClick={() => handleShare(selectedItem)}

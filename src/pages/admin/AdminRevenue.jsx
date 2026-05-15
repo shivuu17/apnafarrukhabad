@@ -1,7 +1,7 @@
 const channels = [
   { name: 'Homepage Banner', revenue: 'Rs 78,400', growth: '+8.2%' },
   { name: 'Sponsored Story', revenue: 'Rs 52,100', growth: '+5.9%' },
-  { name: 'Video Pre-roll', revenue: 'Rs 39,500', growth: '+11.4%' },
+  { name: 'Sponsored Content', revenue: 'Rs 39,500', growth: '+11.4%' },
 ]
 
 export default function AdminRevenue() {

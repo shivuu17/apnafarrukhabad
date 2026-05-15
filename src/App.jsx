@@ -4,7 +4,6 @@ import { LanguageProvider } from './contexts/LanguageContext'
 import Header from './components/Header'
 import NewsroomDashboard from './components/NewsroomDashboard'
 import VillageExplorerSection from './components/VillageExplorerSection'
-import ReelsSection from './components/ReelsSection'
 import TrustSection from './components/TrustSection'
 import Footer from './components/Footer'
 import MobileNav from './components/MobileNav'
@@ -18,9 +17,7 @@ import AdminLayout from './layout/AdminLayout'
 import News from './pages/News'
 import Categories from './pages/Categories'
 import Villages from './pages/Villages'
-import Videos from './pages/Videos'
 import Report from './pages/Report.jsx'
-import UploadVideo from './pages/UploadVideo.jsx'
 import Trending from './pages/Trending'
 import AboutUs from './pages/AboutUs'
 import ContactUs from './pages/ContactUs'
@@ -49,7 +46,6 @@ function HomeContent({ scrolled }) {
       <main>
         <NewsroomDashboard />
         <VillageExplorerSection />
-        <ReelsSection />
         <TrustSection />
       </main>
       <Footer />
@@ -102,9 +98,7 @@ function App() {
       { path: '/categories', element: <Categories /> },
       { path: '/category/:slug', element: <CategoryTopic /> },
       { path: '/villages', element: <Villages /> },
-      { path: '/videos', element: <Videos /> },
       { path: '/report', element: <RequireAuth><Report /></RequireAuth> },
-      { path: '/upload-video', element: <RequireAuth><UploadVideo /></RequireAuth> },
       { path: '/profile', element: <RequireAuth><Profile /></RequireAuth> },
       { path: '/onboarding', element: <RequireAuth><OnboardingProfile /></RequireAuth> },
       { path: '/trending', element: <Trending /> },

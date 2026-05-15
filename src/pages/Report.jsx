@@ -48,8 +48,15 @@ function Report() {
     phone: user?.phone || '',
   }
 
-  const { register, handleSubmit, formState: { errors }, reset, setValue } = useForm({
+  const { register, handleSubmit, formState: { errors }, reset, setValue, watch } = useForm({
     defaultValues: {
+      title: '',
+      category: '',
+      description: '',
+      dateTime: new Date().toISOString().slice(0,16),
+      village: reporterDetails.name ? initialLocation?.name || '' : initialLocation?.name || '',
+      district: initialLocation?.district || '',
+      state: initialLocation?.state || '',
       name: reporterDetails.name,
       email: reporterDetails.email,
       phone: reporterDetails.phone,
@@ -76,6 +83,11 @@ function Report() {
     if (reporterDetails.name) setValue('name', reporterDetails.name)
     if (reporterDetails.email) setValue('email', reporterDetails.email)
     if (reporterDetails.phone) setValue('phone', reporterDetails.phone)
+    if (location) {
+      setValue('village', location.name)
+      setValue('district', location.district || '')
+      setValue('state', location.state || '')
+    }
   }, [user, setValue])
 
   useEffect(() => {
@@ -198,6 +210,11 @@ function Report() {
       return
     }
 
+    if (!uploadedImage && !cloudinaryMissing) {
+      alert('Please upload an image for the report')
+      return
+    }
+
     const payload = {
       ...data,
       userId: user?.id || '',
@@ -311,6 +328,35 @@ function Report() {
                 {errors.category && <p className="mt-1 text-xs text-red-600">{errors.category.message}</p>}
               </div>
               
+              {/* Date & Time */}
+              <div>
+                <label className="block text-sm font-bold text-navy-900">Date &amp; Time</label>
+                <input
+                  type="datetime-local"
+                  {...register('dateTime', { required: 'Date & Time is required' })}
+                  defaultValue={new Date().toISOString().slice(0,16)}
+                  className="mt-2 w-full rounded-lg border border-slate-200 px-4 py-2.5 text-sm focus:border-agri-500 focus:outline-none"
+                />
+                {errors.dateTime && <p className="mt-1 text-xs text-red-600">{errors.dateTime.message}</p>}
+              </div>
+
+              {/* Location fields (read-only) */}
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div>
+                  <label className="block text-sm font-bold text-navy-900">Village / City</label>
+                  <input type="text" {...register('village', { required: 'Village is required' })} readOnly value={location?.name || ''} className="mt-2 w-full rounded-lg border border-slate-200 px-4 py-2.5 text-sm bg-slate-50" />
+                  {errors.village && <p className="mt-1 text-xs text-red-600">{errors.village.message}</p>}
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-navy-900">District</label>
+                  <input type="text" {...register('district')} readOnly value={location?.district || ''} className="mt-2 w-full rounded-lg border border-slate-200 px-4 py-2.5 text-sm bg-slate-50" />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-navy-900">State</label>
+                  <input type="text" {...register('state')} readOnly value={location?.state || ''} className="mt-2 w-full rounded-lg border border-slate-200 px-4 py-2.5 text-sm bg-slate-50" />
+                </div>
+              </div>
+
               {/* User Status */}
               {user && (
                 <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
@@ -411,7 +457,7 @@ function Report() {
                 {errors.description && <p className="mt-1 text-xs text-red-600">{errors.description.message}</p>}
               </div>
 
-              {/* Contact */}
+              {/* Contact (name/email auto-filled & disabled) */}
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
                   <label className="block text-sm font-bold text-navy-900">{t('name')}</label>
@@ -419,23 +465,34 @@ function Report() {
                     type="text"
                     placeholder={t('enterName')}
                     {...register('name', { required: t('name') + ' आवश्यक है' })}
-                    className="mt-2 w-full rounded-lg border border-slate-200 px-4 py-2.5 text-sm focus:border-agri-500 focus:outline-none"
+                    className="mt-2 w-full rounded-lg border border-slate-200 px-4 py-2.5 text-sm focus:border-agri-500 focus:outline-none bg-slate-50"
+                    disabled
                   />
                   {errors.name && <p className="mt-1 text-xs text-red-600">{errors.name.message}</p>}
                 </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div>
-                    <label className="block text-sm font-bold text-navy-900">{t('phone')}</label>
-                    <input
-                      type="tel"
-                      placeholder={t('enterPhone')}
-                      {...register('phone', { required: t('phone') + ' आवश्यक है' })}
-                      className="mt-2 w-full rounded-lg border border-slate-200 px-4 py-2.5 text-sm focus:border-agri-500 focus:outline-none"
-                    />
-                    {errors.phone && <p className="mt-1 text-xs text-red-600">{errors.phone.message}</p>}
-                  </div>
+                <div>
+                  <label className="block text-sm font-bold text-navy-900">{t('phone')}</label>
+                  <input
+                    type="tel"
+                    placeholder={t('enterPhone')}
+                    {...register('phone', { required: t('phone') + ' आवश्यक है' })}
+                    className="mt-2 w-full rounded-lg border border-slate-200 px-4 py-2.5 text-sm focus:border-agri-500 focus:outline-none"
+                  />
+                  <p className="mt-1 text-xs text-slate-500">This phone number is collected for admin use only and will not be shown publicly.</p>
+                  {errors.phone && <p className="mt-1 text-xs text-red-600">{errors.phone.message}</p>}
                 </div>
-            </div>
+                <div className="col-span-2">
+                  <label className="block text-sm font-bold text-navy-900">Email</label>
+                  <input
+                    type="email"
+                    placeholder={t('enterEmail')}
+                    {...register('email', { required: t('enterEmail') + ' आवश्यक है' })}
+                    className="mt-2 w-full rounded-lg border border-slate-200 px-4 py-2.5 text-sm focus:border-agri-500 focus:outline-none bg-slate-50"
+                    disabled
+                  />
+                  {errors.email && <p className="mt-1 text-xs text-red-600">{errors.email.message}</p>}
+                </div>
+              </div>
             </div>
 
             {/* Submit Button */}

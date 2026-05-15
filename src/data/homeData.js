@@ -5,8 +5,7 @@ export const quickAccess = [
   { title: 'Mandi Rates', icon: 'LineChart' },
   { title: 'Emergency Alerts', icon: 'Siren' },
   { title: 'Govt Schemes', icon: 'Landmark' },
-  { title: 'Buy / Sell', icon: 'Store' },
-  { title: 'Village Videos', icon: 'Clapperboard' }
+  { title: 'Buy / Sell', icon: 'Store' }
 ]
 
 export const feedData = []
@@ -22,7 +21,6 @@ export const trendingTags = []
 
 export const footerActions = [
   { title: 'रिपोर्ट करें', subtitle: 'स्थानीय खबर साझा करें', icon: 'PenLine' },
-  { title: 'वीडियो भेजें', subtitle: 'घटनाओं का डॉक्यूमेंट करें', icon: 'Camera' },
   { title: 'स्थानीय खोजें', subtitle: 'अपने गांव की जानकारी देखें', icon: 'MapPin' },
   { title: 'सत्यापन', subtitle: 'विश्वसनीय रिपोर्टर बनें', icon: 'BadgeCheck' },
   { title: 'मंडी देखें', subtitle: 'ताज़ा भाव और रुझान', icon: 'LineChart' },

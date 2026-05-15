@@ -67,14 +67,12 @@ function MobileNav() {
       <Modal
         isOpen={showMarketModal}
         onClose={() => setShowMarketModal(false)}
-        title="Business Profile Coming Soon"
+        title={t('comingSoonTitle')}
         size="sm"
       >
         <div className="space-y-4">
-          <p className="text-sm text-slate-600">
-            This section is for business profiles where people can list their shops, business name, or location details.
-          </p>
-          <p className="text-sm font-semibold text-emerald-700">It is coming soon.</p>
+          <p className="text-sm text-slate-600">{t('comingSoonBody')}</p>
+          <p className="text-sm font-semibold text-emerald-700">{t('comingSoonTitle')}</p>
         </div>
       </Modal>
     </>

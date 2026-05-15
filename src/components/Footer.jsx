@@ -1,13 +1,15 @@
 import { useState } from 'react'
-import { MapPin, Users, FileText, Bell, Globe, Camera, Play, MessageCircle, Mail, Shield, X } from 'lucide-react'
+import { MapPin, Users, FileText, Bell, Globe, Camera, Play, MessageCircle, Mail, X } from 'lucide-react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import AFLogo from '../assets/AF.png'
 import { Modal } from './ui/Modals'
 import { Input } from './ui/FormInputs'
 import { Button } from './ui/Button'
 import useAuth from '../hooks/useAuth'
+import { useLanguage } from '../contexts/LanguageContext'
 
 function Footer() {
+  const { t } = useLanguage()
   const navigate = useNavigate()
   const location = useLocation()
   const { login } = useAuth()
@@ -118,12 +120,10 @@ function Footer() {
                 <img src={AFLogo} alt="ApnaFarrukhabad" className="h-12 w-12 rounded-full object-cover" />
                 <div>
                   <h3 className="text-lg font-black text-white">ApnaFarrukhabad</h3>
-                  <p className="text-xs text-emerald-50">Your voice. Your village. Your news.</p>
+                  <p className="text-xs text-emerald-50">{t('tagline')}</p>
                 </div>
               </div>
-              <p className="text-sm text-emerald-50 leading-6 mt-4">
-                ApnaFarrukhabad is a community-powered platform bringing you the latest local news, weather updates, and important alerts from every corner of Farrukhabad.
-              </p>
+              <p className="text-sm text-emerald-50 leading-6 mt-4">{t('platformDescription')}</p>
               <div className="flex gap-3 mt-6">
                 <button onClick={() => handleSocialClick('Facebook')} className="inline-flex items-center justify-center h-10 w-10 rounded-full bg-slate-700 hover:bg-slate-600 transition">
                   <Globe size={18} />
@@ -145,79 +145,52 @@ function Footer() {
 
             {/* Quick Links */}
             <div>
-              <h4 className="text-sm font-bold uppercase tracking-wider mb-4 text-emerald-100">Quick Links</h4>
+              <h4 className="text-sm font-bold uppercase tracking-wider mb-4 text-emerald-100">{t('quickLinks')}</h4>
               <ul className="space-y-3 text-sm">
-                <li><Link to="/" className="text-emerald-50 hover:text-white transition">Home</Link></li>
-                <li><Link to="/news" className="text-emerald-50 hover:text-white transition">News</Link></li>
-                <li><Link to="/villages" className="text-emerald-50 hover:text-white transition">Villages</Link></li>
-                <li><Link to="/categories" className="text-emerald-50 hover:text-white transition">Categories</Link></li>
-                <li><Link to="/videos" className="text-emerald-50 hover:text-white transition">Videos</Link></li>
-                <li><Link to="/report" className="text-emerald-50 hover:text-white transition">Report News</Link></li>
-                <li><Link to="/trending" className="text-emerald-50 hover:text-white transition">Trending</Link></li>
+                <li><Link to="/" className="text-emerald-50 hover:text-white transition">{t('home')}</Link></li>
+                <li><Link to="/news" className="text-emerald-50 hover:text-white transition">{t('news')}</Link></li>
+                <li><Link to="/villages" className="text-emerald-50 hover:text-white transition">{t('villages')}</Link></li>
+                <li><Link to="/categories" className="text-emerald-50 hover:text-white transition">{t('categories')}</Link></li>
+                <li><Link to="/report" className="text-emerald-50 hover:text-white transition">{t('report')}</Link></li>
+                <li><Link to="/trending" className="text-emerald-50 hover:text-white transition">{t('trending')}</Link></li>
               </ul>
             </div>
 
             {/* Categories */}
             <div>
-              <h4 className="text-sm font-bold uppercase tracking-wider mb-4 text-emerald-100">Categories</h4>
+              <h4 className="text-sm font-bold uppercase tracking-wider mb-4 text-emerald-100">{t('categoriesHeading')}</h4>
               <ul className="space-y-3 text-sm">
-                <li><button onClick={() => openPage('/category/agriculture')} className="text-emerald-50 hover:text-white transition">Agriculture</button></li>
-                <li><button onClick={() => openPage('/category/education')} className="text-emerald-50 hover:text-white transition">Education</button></li>
-                <li><button onClick={() => openPage('/category/health')} className="text-emerald-50 hover:text-white transition">Health</button></li>
+                <li><button onClick={() => openPage('/category/agriculture')} className="text-emerald-50 hover:text-white transition">{t('agriculture')}</button></li>
+                <li><button onClick={() => openPage('/category/education')} className="text-emerald-50 hover:text-white transition">{t('education')}</button></li>
+                <li><button onClick={() => openPage('/category/health')} className="text-emerald-50 hover:text-white transition">{t('health')}</button></li>
                 <li><button onClick={() => openPage('/category/infrastructure')} className="text-emerald-50 hover:text-white transition">Infrastructure</button></li>
-                <li><button onClick={() => openPage('/category/weather')} className="text-emerald-50 hover:text-white transition">Weather</button></li>
-                <li><button onClick={() => openPage('/category/business')} className="text-emerald-50 hover:text-white transition">Business</button></li>
-                <li><button onClick={() => openPage('/category/sports')} className="text-emerald-50 hover:text-white transition">Sports</button></li>
+                <li><button onClick={() => openPage('/category/weather')} className="text-emerald-50 hover:text-white transition">{t('weather')}</button></li>
+                <li><button onClick={() => openPage('/category/business')} className="text-emerald-50 hover:text-white transition">{t('business')}</button></li>
+                <li><button onClick={() => openPage('/category/sports')} className="text-emerald-50 hover:text-white transition">{t('sports')}</button></li>
               </ul>
             </div>
 
             {/* Company */}
             <div>
-              <h4 className="text-sm font-bold uppercase tracking-wider mb-4 text-emerald-100">Company</h4>
+              <h4 className="text-sm font-bold uppercase tracking-wider mb-4 text-emerald-100">{t('company')}</h4>
               <ul className="space-y-3 text-sm">
-                <li><Link to="/about" className="text-emerald-50 hover:text-white transition">About Us</Link></li>
-                <li><Link to="/contact" className="text-emerald-50 hover:text-white transition">Contact Us</Link></li>
-                <li><Link to="/privacy-policy" className="text-emerald-50 hover:text-white transition">Privacy Policy</Link></li>
-                <li><Link to="/terms-and-conditions" className="text-emerald-50 hover:text-white transition">Terms & Conditions</Link></li>
-                <li><Link to="/editorial-policy" className="text-emerald-50 hover:text-white transition">Editorial Policy</Link></li>
-                <li><Link to="/advertise" className="text-emerald-50 hover:text-white transition">Advertise With Us</Link></li>
+                <li><Link to="/about" className="text-emerald-50 hover:text-white transition">{t('about')}</Link></li>
+                <li><Link to="/privacy-policy" className="text-emerald-50 hover:text-white transition">{t('privacyPolicy')}</Link></li>
+                <li><Link to="/terms-and-conditions" className="text-emerald-50 hover:text-white transition">{t('termsAndConditions')}</Link></li>
+                <li><Link to="/editorial-policy" className="text-emerald-50 hover:text-white transition">{t('editorialPolicy')}</Link></li>
+                <li><Link to="/advertise" className="text-emerald-50 hover:text-white transition">{t('advertise')}</Link></li>
               </ul>
             </div>
 
-            {/* Connect With Us */}
-            <div>
-              <h4 className="text-sm font-bold uppercase tracking-wider mb-4 text-emerald-100">Connect With Us</h4>
-              <ul className="space-y-2 text-sm text-emerald-50">
-                <li className="flex gap-2">
-                  <span>📍</span>
-                  <span>Farrukhabad, Uttar Pradesh, India</span>
-                </li>
-                <li className="flex gap-2">
-                  <span>📱</span>
-                  <a href="tel:+919123456789" className="hover:text-white transition">+91 9123456789</a>
-                </li>
-                <li className="flex gap-2">
-                  <span>✉️</span>
-                  <a href="mailto:info@apnafarrukhabad.com" className="hover:text-white transition">info@apnafarrukhabad.com</a>
-                </li>
-              </ul>
-            </div>
+            {/* Connect With Us removed per request */}
           </div>
 
           {/* Divider */}
           <div className="border-t border-emerald-900/40 pt-8" />
 
           {/* Copyright */}
-          <div className="flex items-center justify-center gap-4 text-sm text-emerald-50 text-center">
+          <div className="flex items-center justify-center text-sm text-emerald-50 text-center">
             <p>© 2024 ApnaFarrukhabad. All rights reserved.</p>
-            <span className="text-emerald-100">|</span>
-            <button
-              type="button"
-              onClick={openAdminLogin}
-              className={`inline-flex items-center gap-2 font-semibold transition ${location.pathname.startsWith('/admin') ? 'text-white' : 'text-emerald-100 hover:text-white'}`}
-            >
-              <Shield size={14} /> Admin
-            </button>
           </div>
         </div>
       </div>

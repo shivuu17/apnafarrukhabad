@@ -4,9 +4,12 @@ import { ChevronRight, MapPin } from 'lucide-react'
 import { feedData } from '../data/homeData'
 import { getApprovedSubmissions, subscribeToModerationChanges } from '../services/mediaModeration.service'
 import { optimizeCloudinaryImageUrl } from '../utils/imageOptimization'
+import useWeather from '../hooks/useWeather'
+import { getWeatherDisplayIcon } from '../services/weather.service'
 
 export default function HeroSection() {
   const [liveItems, setLiveItems] = useState([])
+  const { weather, loading: weatherLoading } = useWeather()
 
   useEffect(() => {
     let mounted = true
@@ -35,6 +38,11 @@ export default function HeroSection() {
   const featured = liveItems[0] || feedData[0]
   const stacked = liveItems.slice(1, 4)
   const featuredImage = optimizeCloudinaryImageUrl(featured?.imageUrl || featured?.image, { width: 1600, height: 900, crop: 'fill' })
+  const weatherTemp = typeof weather?.temperature === 'number' ? `${Math.round(weather.temperature)}°` : '--°'
+  const weatherDescription = weatherLoading ? 'Loading weather...' : (weather?.description ? String(weather.description).replace(/^./, (ch) => ch.toUpperCase()) : 'Weather unavailable')
+  const weatherRain = typeof weather?.rainChance === 'number' ? `${Math.round(weather.rainChance)}%` : '--%'
+  const weatherHumidity = typeof weather?.humidity === 'number' ? `${Math.round(weather.humidity)}%` : '--%'
+  const weatherIcon = getWeatherDisplayIcon(weather?.description, weather?.conditionCode)
 
   if (!featured) {
     return (
@@ -83,6 +91,8 @@ export default function HeroSection() {
                   loading="eager"
                   fetchPriority="high"
                   decoding="async"
+                  width={1600}
+                  height={900}
                   sizes="(min-width: 1024px) 58vw, 100vw"
                   className="absolute inset-0 h-full w-full object-cover"
                 />
@@ -154,6 +164,8 @@ export default function HeroSection() {
                     alt={item.title}
                     loading="lazy"
                     decoding="async"
+                    width={480}
+                    height={320}
                     className="h-full w-full object-cover"
                   />
                 </div>
@@ -190,29 +202,29 @@ export default function HeroSection() {
               <div className="mb-4">
                 <div className="text-xs font-semibold uppercase tracking-wide opacity-90">Weather Today</div>
                 <div className="flex items-center justify-between mt-2">
-                  <div className="text-xs opacity-80">Farrukhabad</div>
+                  <div className="text-xs opacity-80">{weather?.locationName || 'Farrukhabad'}</div>
                   <MapPin size={14} className="opacity-80" />
                 </div>
               </div>
 
               {/* Temperature */}
               <div className="mb-5">
-                <div className="text-5xl font-black leading-none">33°</div>
-                <div className="mt-2 text-sm font-semibold">Light Rain</div>
+                <div className="text-5xl font-black leading-none flex items-center gap-2">{weatherIcon} {weatherTemp}</div>
+                <div className="mt-2 text-sm font-semibold">{weatherDescription}</div>
               </div>
 
               {/* Stats grid */}
               <div className="grid grid-cols-2 gap-3 border-t border-white/20 pt-4">
                 <div>
-                  <div className="text-sm font-bold">78%</div>
+                  <div className="text-sm font-bold">{weatherHumidity}</div>
                   <div className="text-xs opacity-80">Humidity</div>
                 </div>
                 <div>
-                  <div className="text-sm font-bold">14 km/h</div>
+                  <div className="text-sm font-bold">{weather?.windSpeed != null ? `${Math.round(weather.windSpeed)} km/h` : '-- km/h'}</div>
                   <div className="text-xs opacity-80">Wind</div>
                 </div>
                 <div className="col-span-2">
-                  <div className="text-sm font-bold">67%</div>
+                  <div className="text-sm font-bold">{weatherRain}</div>
                   <div className="text-xs opacity-80">Rain Chance</div>
                 </div>
               </div>

@@ -17,7 +17,6 @@ export const translations = {
     news: 'न्यूज़',
     categories: 'श्रेणियाँ',
     villages: 'गांव',
-    videos: 'वीडीयो',
     report: 'रिपोर्ट करें',
     trending: 'ट्रेंडिंग',
     
@@ -51,9 +50,6 @@ export const translations = {
     active: 'सक्रिय',
     peaceful: 'शांत',
     
-    // Videos page
-    videoGallery: 'वीडीयो गैलरी',
-    watchLearn: 'देखें और सीखें',
     views: 'views',
     
     // Report page
@@ -89,6 +85,24 @@ export const translations = {
     upload: 'अपलोड',
     market: 'बाजार',
     profile: 'प्रोफाइल',
+    // Footer / misc
+    tagline: 'आपकी आवाज़। आपके गांव। आपकी खबर।',
+    platformDescription: 'ApnaFarrukhabad एक समुदाय चालित प्लेटफ़ॉर्म है जो आपको सबसे ताज़ा स्थानीय समाचार, मौसम अपडेट और महत्वपूर्ण अलर्ट देता है।',
+    quickLinks: 'त्वरित लिंक',
+    categoriesHeading: 'श्रेणियाँ',
+    company: 'कंपनी',
+    connectWithUs: 'हमसे जुड़ें',
+    villagesCovered: 'कवर किए गए गांव',
+    verifiedReporters: 'सत्यापित रिपोर्टर',
+    storiesPublished: 'कहानी प्रकाशित',
+    farmAlerts: 'कृषि अलर्ट',
+    monthlyReaders: 'मासिक पाठक',
+    admin: 'एडमिन',
+    privacyPolicy: 'गोपनीयता नीति',
+    termsAndConditions: 'नियम और शर्तें',
+    editorialPolicy: 'संपादकीय नीति',
+    comingSoonTitle: 'बिज़नेस प्रोफ़ाइल जल्द आ रही है',
+    comingSoonBody: 'यह सेक्शन बिज़नस प्रोफ़ाइल के लिए होगा जहाँ लोग अपनी दुकानें, व्यापार नाम या स्थान विवरण सूचीबद्ध कर सकेंगे।',
   },
   en: {
     // Header
@@ -104,7 +118,6 @@ export const translations = {
     news: 'News',
     categories: 'Categories',
     villages: 'Villages',
-    videos: 'Videos',
     report: 'Report',
     trending: 'Trending',
     
@@ -138,9 +151,6 @@ export const translations = {
     active: 'Active',
     peaceful: 'Peaceful',
     
-    // Videos page
-    videoGallery: 'Video Gallery',
-    watchLearn: 'Watch & Learn',
     views: 'views',
     
     // Report page
@@ -176,14 +186,47 @@ export const translations = {
     upload: 'Upload',
     market: 'Market',
     profile: 'Profile',
+      // Footer / misc
+      tagline: 'Your voice. Your village. Your news.',
+      platformDescription: 'ApnaFarrukhabad is a community-powered platform bringing you local news, weather updates, and important alerts from across Farrukhabad.',
+      quickLinks: 'Quick Links',
+      categoriesHeading: 'Categories',
+      company: 'Company',
+      connectWithUs: 'Connect With Us',
+      villagesCovered: 'Villages covered',
+      verifiedReporters: 'Verified reporters',
+      storiesPublished: 'Stories published',
+      farmAlerts: 'Farm alerts',
+      monthlyReaders: 'Monthly readers',
+      admin: 'Admin',
+      privacyPolicy: 'Privacy Policy',
+      termsAndConditions: 'Terms & Conditions',
+      editorialPolicy: 'Editorial Policy',
+      comingSoonTitle: 'Business Profile Coming Soon',
+      comingSoonBody: 'This section is for business profiles where people can list their shops, business name, or location details.',
   }
 }
 
 export function LanguageProvider({ children }) {
-  const [language, setLanguage] = useState('en')
+  const [language, setLanguage] = useState(() => {
+    try {
+      const saved = window.localStorage.getItem('appLanguage')
+      return saved || 'en'
+    } catch (e) {
+      return 'en'
+    }
+  })
 
   const toggleLanguage = () => {
-    setLanguage(prev => prev === 'en' ? 'hi' : 'en')
+    setLanguage(prev => {
+      const next = prev === 'en' ? 'hi' : 'en'
+      try {
+        window.localStorage.setItem('appLanguage', next)
+      } catch (e) {
+        // ignore
+      }
+      return next
+    })
   }
 
   const t = (key) => translations[language][key] || key

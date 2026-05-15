@@ -32,8 +32,7 @@ function QuickAccessGrid() {
       'Statistics': '📊 Showing village statistics...',
       'Report Alert': '⚠️ Opening alert report form...',
       'Government': '🏛️ Government schemes portal...',
-      'Marketplace': '🛒 Loading marketplace...',
-      'Videos': '🎬 Opening video gallery...'
+      'Marketplace': '🛒 Loading marketplace...'
     }
     alert(messages[title] || `Opening ${title}...`)
   }
