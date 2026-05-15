@@ -5,15 +5,7 @@ The complete user workflow is now active and ready for testing. Users can sign u
 
 ## Test Accounts
 
-### Demo User (Regular User)
-- **Email:** demo@local
-- **Password:** demo123
-- **Role:** user
-
-### Admin User (Moderator)
-- **Email:** admin@local
-- **Password:** admin123
-- **Role:** admin
+Use your Firebase-authenticated account for testing. Admin access is granted when the user record or Firebase custom claims mark the account as admin.
 
 ## Complete Workflow Steps
 
@@ -52,7 +44,7 @@ The complete user workflow is now active and ready for testing. Users can sign u
 5. You'll see a confirmation: "Sent to admin for approval"
 
 ### Step 5: Admin Approval Process (Admins)
-1. Log in as admin (admin@local / admin123)
+1. Log in with an account that has admin access in Firebase
 2. Header will show "Admin" label in profile dropdown
 3. Click admin profile → "Admin Panel"
 4. You'll see the Moderation Queue with:
@@ -165,7 +157,7 @@ VITE_CLOUDINARY_UPLOAD_FOLDER=apnafarrukhabad/news
 - **Fix:** Check Cloudinary credentials in `.env`. Make sure image file is valid (PNG, JPG, JPEG, WebP).
 
 ### Issue: Admin can't see submissions
-- **Fix:** Make sure logged in as admin (admin@local). Check that submissions are in pending state.
+- **Fix:** Make sure the Firebase user has the admin role or admin claim. Check that submissions are in pending state.
 
 ### Issue: Approved news doesn't show on home page
 - **Fix:** Refresh the page. Check that NewsroomDashboard is on home page. Verify moderation service localStorage is working.

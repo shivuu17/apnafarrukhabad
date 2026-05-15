@@ -68,6 +68,8 @@ function Report() {
   const [showLocationPicker, setShowLocationPicker] = useState(false)
   const [showLocationConfirmModal, setShowLocationConfirmModal] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+  const [showSuccessModal, setShowSuccessModal] = useState(false)
+  const [successSubmission, setSuccessSubmission] = useState(null)
   const imageInputRef = useRef(null)
 
   useEffect(() => {
@@ -135,7 +137,7 @@ function Report() {
     try {
       setImageUploading(true)
       if (cloudinaryMissing) {
-        setImageError('Cloudinary is not configured. Set VITE_CLOUDINARY_CLOUD_NAME and VITE_CLOUDINARY_UPLOAD_PRESET to enable uploads.')
+        setImageError('Image upload is currently unavailable. Please try again later.')
         setUploadedImage(null)
       } else {
         const cloud = await import('../services/cloudinary.service')
@@ -166,10 +168,9 @@ function Report() {
   const handleAllowLocation = async () => {
     try {
       await detectLocation()
-      setLocationConfirmed(false)
+      setLocationConfirmed(true)
       setShowPermissionModal(false)
       setShowLocationPicker(false)
-      setShowLocationConfirmModal(true)
     } catch (err) {}
   }
 
@@ -180,9 +181,8 @@ function Report() {
 
   const handleSelectLocation = (nextLocation) => {
     confirmLocation(nextLocation)
-    setLocationConfirmed(false)
+    setLocationConfirmed(true)
     setShowLocationPicker(false)
-    setShowLocationConfirmModal(true)
   }
 
   const handleConfirmLocation = () => {
@@ -193,13 +193,15 @@ function Report() {
   }
 
   const onSubmit = (data) => {
-    if (!location || !locationConfirmed) {
-      alert('Please confirm your location before submitting the report')
+    if (!location) {
+      alert('Please set your location before submitting the report')
       return
     }
 
     const payload = {
       ...data,
+      userId: user?.id || '',
+      avatar: user?.avatar || '',
       name: reporterDetails.name || data.name,
       email: reporterDetails.email || data.email,
       phone: reporterDetails.phone || data.phone,
@@ -214,16 +216,15 @@ function Report() {
       locationVerified: true,
       imageUrl: uploadedImage?.secureUrl || '',
       imagePublicId: uploadedImage?.publicId || '',
+      imageName: selectedImage?.name || '',
       imageFolder: cloudinaryConfig.folder,
     }
     // create pending submission via dynamic import (avoid top-level module errors)
     import('../services/mediaModeration.service')
-      .then((mod) => {
-        const queuedSubmission = mod.createPendingSubmission(payload)
-
-        alert(
-          `✍️ Report sent for approval:\n\n${queuedSubmission.title}\n\n${queuedSubmission.description}${queuedSubmission.imageUrl ? `\n\nImage saved to Cloudinary:\n${queuedSubmission.imageUrl}` : ''}`
-        )
+      .then(async (mod) => {
+        const queuedSubmission = await mod.createPendingSubmission(payload)
+        setSuccessSubmission(queuedSubmission)
+        setShowSuccessModal(true)
         setSubmitted(true)
         reset()
         clearImage()
@@ -259,23 +260,18 @@ function Report() {
                 <h2 className="mt-1 text-lg font-extrabold text-slate-900">{location ? buildDisplayName(location) : 'Choose your location'}</h2>
                 <p className="mt-1 text-sm text-slate-600">This helps local readers understand where the report was filed from.</p>
               </div>
-              <Button type="button" variant="outline" size="sm" onClick={() => setShowLocationConfirmModal(true)}>
-                Change location
-              </Button>
             </div>
 
             <div className="mt-4">
               <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
-                {locationConfirmed
-                  ? `Location confirmed${location ? `: ${buildDisplayName(location)}` : ''}.`
-                  : 'Tap Change location to open the popup and confirm where this report was filed from.'}
+                {location ? `Your location: ${buildDisplayName(location)}.` : 'Getting your location...'}
               </div>
             </div>
 
             {locationError && <p className="mt-3 text-sm font-semibold text-rose-700">{locationError}</p>}
 
-            <p className="mt-2 text-xs font-semibold text-amber-700">
-              {locationConfirmed ? 'Location confirmed.' : 'Please confirm your detected or selected location.'}
+            <p className="mt-2 text-xs font-semibold text-emerald-700">
+              Location set. You can change it if needed.
             </p>
           </div>
           
@@ -346,7 +342,6 @@ function Report() {
               <div>
                 <div className="flex items-center justify-between gap-3">
                   <label className="block text-sm font-bold text-navy-900">News Image</label>
-                  <span className="text-xs font-semibold text-slate-500">Saved in Cloudinary</span>
                 </div>
                 <div className="mt-2 rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 p-4">
                   <input
@@ -376,7 +371,7 @@ function Report() {
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <div className="text-xs text-slate-600">
                           <p className="font-semibold text-slate-800">{selectedImage?.name}</p>
-                          <p>{imageUploading ? 'Uploading to Cloudinary...' : uploadedImage ? 'Uploaded and ready to save' : 'Waiting for upload'}</p>
+                          <p>{imageUploading ? 'Uploading image...' : uploadedImage ? 'Uploaded and ready to save' : 'Waiting for upload'}</p>
                         </div>
                         <div className="flex items-center gap-2">
                           <label htmlFor="report-image-input" className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
@@ -395,21 +390,13 @@ function Report() {
                   )}
                 </div>
 
-                {imageUploading && <p className="mt-2 text-xs font-semibold text-emerald-700">Uploading image to Cloudinary...</p>}
+                {imageUploading && <p className="mt-2 text-xs font-semibold text-emerald-700">Uploading image...</p>}
                 {imageError && <p className="mt-2 text-xs font-semibold text-red-600">{imageError}</p>}
-                {uploadedImage?.secureUrl && (
-                  <p className="mt-2 break-all text-xs text-slate-500">
-                    Cloudinary URL: {uploadedImage.secureUrl}
-                  </p>
-                )}
                 {cloudinaryMissing && (
                   <p className="mt-2 text-sm font-semibold text-rose-600">
-                    Cloudinary is not configured. To enable image uploads set <span className="font-mono">VITE_CLOUDINARY_CLOUD_NAME</span> and <span className="font-mono">VITE_CLOUDINARY_UPLOAD_PRESET</span> in your environment.
+                    Image upload is not available. Please try again later.
                   </p>
                 )}
-                <p className="mt-2 text-xs text-slate-500">
-                  Cloudinary folder: {cloudinaryConfig.folder}
-                </p>
               </div>
 
               {/* Description */}
@@ -479,6 +466,54 @@ function Report() {
           </motion.form>
         </div>
 
+        {showSuccessModal && successSubmission && (
+          <Modal isOpen={showSuccessModal} onClose={() => setShowSuccessModal(false)} title="Report Submitted" size="md">
+            <div className="space-y-4">
+              <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-4">
+                <p className="text-sm font-semibold text-emerald-700">✅ Your report has been sent for approval!</p>
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase text-slate-500">Title</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-900">{successSubmission.title}</p>
+                </div>
+
+                <div>
+                  <p className="text-xs font-semibold uppercase text-slate-500">Description</p>
+                  <p className="mt-1 text-sm text-slate-700 line-clamp-3">{successSubmission.description}</p>
+                </div>
+
+                {successSubmission.imageName && (
+                  <div>
+                    <p className="text-xs font-semibold uppercase text-slate-500">Image Uploaded</p>
+                    <p className="mt-1 text-sm font-semibold text-slate-900">{successSubmission.imageName}</p>
+                  </div>
+                )}
+
+                <div className="rounded-lg bg-slate-50 p-3 border border-slate-200">
+                  <p className="text-xs text-slate-600">
+                    <span className="font-semibold">Status:</span> Pending review
+                  </p>
+                  <p className="text-xs text-slate-600 mt-1">
+                    Your report will appear on the home page once approved by our team.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex justify-end">
+                <Button 
+                  type="button" 
+                  variant="primary" 
+                  onClick={() => setShowSuccessModal(false)}
+                >
+                  Done
+                </Button>
+              </div>
+            </div>
+          </Modal>
+        )}
+
         <LocationPermissionModal
           isOpen={showPermissionModal}
           onClose={() => setShowPermissionModal(false)}
@@ -488,7 +523,7 @@ function Report() {
           error={locationError}
         />
 
-        {showLocationConfirmModal && (
+        {false && (
           <Modal isOpen={showLocationConfirmModal} onClose={() => setShowLocationConfirmModal(false)} title="Confirm location" size="md">
             <div className="space-y-4">
               {location ? (

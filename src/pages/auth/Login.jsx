@@ -3,7 +3,7 @@ import { Input } from '../../components/ui/FormInputs'
 import { Button } from '../../components/ui/Button'
 import useAuth from '../../hooks/useAuth'
 import { useToast } from '../../contexts/ToastContext'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import CommonPageShell from '../../components/CommonPageShell'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -18,6 +18,7 @@ export default function Login() {
   const { login } = useAuth()
   const { showToast } = useToast()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
 
   const {
     register,
@@ -27,9 +28,18 @@ export default function Login() {
 
   const onSubmit = async (values) => {
     try {
-      await login(values)
+      const result = await login(values)
       showToast('Logged in successfully', 'success')
-      navigate('/onboarding')
+      
+      // Check if profile is completed
+      if (!result.user?.profileCompleted) {
+        // Profile not completed, redirect to onboarding
+        navigate('/onboarding')
+      } else {
+        // Profile completed, redirect to previous page or home
+        const next = searchParams.get('next')
+        navigate(next || '/')
+      }
     } catch (err) {
       showToast(err.message || 'Login failed', 'error')
     }

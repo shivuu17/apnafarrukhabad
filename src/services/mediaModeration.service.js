@@ -1,10 +1,14 @@
+import { collection, doc, getDoc, getDocs, setDoc, query, where, onSnapshot, deleteField, Timestamp } from 'firebase/firestore'
+import { getFirebaseAuth, getFirebaseDb } from './firebaseClient'
+
 const STORAGE_KEY = 'af_media_moderation_v1'
+const FIRESTORE_COLLECTION = 'submissions'
 
 function hasWindow() {
   return typeof window !== 'undefined' && typeof window.localStorage !== 'undefined'
 }
 
-function readState() {
+function readLocalState() {
   if (!hasWindow()) {
     return { pending: [], approved: [] }
   }
@@ -23,11 +27,79 @@ function readState() {
   }
 }
 
-function writeState(nextState) {
+function writeLocalState(nextState) {
   if (!hasWindow()) return nextState
 
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextState))
   window.dispatchEvent(new StorageEvent('storage', { key: STORAGE_KEY, newValue: JSON.stringify(nextState) }))
+  return nextState
+}
+
+async function readState({ approvedOnly = false } = {}) {
+  try {
+    const db = getFirebaseDb()
+    const submissionsRef = collection(db, FIRESTORE_COLLECTION)
+    const currentUser = getFirebaseAuth().currentUser
+    const shouldReadApprovedOnly = approvedOnly || !currentUser
+    const snapshot = shouldReadApprovedOnly
+      ? await getDocs(query(submissionsRef, where('status', '==', 'approved')))
+      : await getDocs(submissionsRef)
+    
+    const pending = []
+    const approved = []
+    
+    snapshot.forEach((doc) => {
+      const data = doc.data()
+      const submission = {
+        ...data,
+        id: doc.id,
+        createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate().toISOString() : data.createdAt,
+        approvedAt: data.approvedAt instanceof Timestamp ? data.approvedAt.toDate().toISOString() : data.approvedAt,
+        reviewedAt: data.reviewedAt instanceof Timestamp ? data.reviewedAt.toDate().toISOString() : data.reviewedAt,
+      }
+      
+      if (data.status === 'approved') {
+        approved.push(submission)
+      } else {
+        pending.push(submission)
+      }
+    })
+    
+    return { pending, approved }
+  } catch (error) {
+    console.warn('Failed to read from Firebase, falling back to localStorage:', error)
+    return readLocalState()
+  }
+}
+
+async function writeState(nextState) {
+  try {
+    const db = getFirebaseDb()
+    
+    // Write to Firebase
+    for (const submission of nextState.pending) {
+      const docRef = doc(db, FIRESTORE_COLLECTION, submission.id)
+      await setDoc(docRef, {
+        ...submission,
+        status: 'pending',
+        createdAt: submission.createdAt instanceof Timestamp ? submission.createdAt : Timestamp.fromDate(new Date(submission.createdAt)),
+      }, { merge: true })
+    }
+    
+    for (const submission of nextState.approved) {
+      const docRef = doc(db, FIRESTORE_COLLECTION, submission.id)
+      await setDoc(docRef, {
+        ...submission,
+        status: 'approved',
+        createdAt: submission.createdAt instanceof Timestamp ? submission.createdAt : Timestamp.fromDate(new Date(submission.createdAt)),
+        approvedAt: submission.approvedAt instanceof Timestamp ? submission.approvedAt : Timestamp.fromDate(new Date(submission.approvedAt)),
+      }, { merge: true })
+    }
+  } catch (error) {
+    console.warn('Failed to write to Firebase, falling back to localStorage:', error)
+    writeLocalState(nextState)
+  }
+  
   return nextState
 }
 
@@ -38,8 +110,11 @@ function generateId(prefix = 'submission') {
 function normalizeSubmission(submission, overrides = {}) {
   return {
     id: submission.id || generateId(),
+    userId: submission.userId || submission.uid || '',
+    avatar: submission.avatar || submission.profileImage || submission.userAvatar || '',
     title: submission.title?.trim() || '',
     description: submission.description?.trim() || '',
+    email: submission.email?.trim() || submission.reporterEmail || '',
     village: submission.village || '',
     category: submission.category || '',
     reporterName: submission.name?.trim() || submission.reporterName || 'Community Contributor',
@@ -65,75 +140,147 @@ function normalizeSubmission(submission, overrides = {}) {
   }
 }
 
-export function getModerationState() {
+export async function getModerationState() {
   return readState()
 }
 
-export function getPendingSubmissions() {
-  return readState().pending
+export async function getPendingSubmissions() {
+  const state = await readState()
+  return state.pending
 }
 
-export function getApprovedSubmissions() {
-  return readState().approved
+export async function getApprovedSubmissions() {
+  const state = await readState({ approvedOnly: true })
+  return state.approved
 }
 
-export function createPendingSubmission(submission) {
-  const state = readState()
-  const next = normalizeSubmission(submission, { status: 'pending' })
-  const updatedState = {
-    ...state,
-    pending: [next, ...state.pending],
+export async function createPendingSubmission(submission) {
+  try {
+    const db = getFirebaseDb()
+    const next = normalizeSubmission(submission, { status: 'pending' })
+    const docRef = doc(db, FIRESTORE_COLLECTION, next.id)
+    
+    await setDoc(docRef, {
+      ...next,
+      status: 'pending',
+      createdAt: Timestamp.fromDate(new Date(next.createdAt)),
+    })
+    
+    return next
+  } catch (error) {
+    console.warn('Failed to create submission in Firebase:', error)
+    // Fallback: still store locally
+    const state = readLocalState()
+    const next = normalizeSubmission(submission, { status: 'pending' })
+    const updatedState = {
+      ...state,
+      pending: [next, ...state.pending],
+    }
+    writeLocalState(updatedState)
+    return next
   }
-
-  writeState(updatedState)
-  return next
 }
 
-export function approveSubmission(submissionId, reviewerName = 'Admin') {
-  const state = readState()
-  const pendingItem = state.pending.find((item) => item.id === submissionId)
+export async function approveSubmission(submissionId, reviewerName = 'Admin') {
+  try {
+    const db = getFirebaseDb()
+    const state = await readState()
+    const pendingItem = state.pending.find((item) => item.id === submissionId)
 
-  if (!pendingItem) {
-    throw new Error('Pending submission not found')
+    if (!pendingItem) {
+      throw new Error('Pending submission not found')
+    }
+
+    const approvedItem = normalizeSubmission(pendingItem, {
+      status: 'approved',
+      approvedAt: new Date().toISOString(),
+      approvedBy: reviewerName,
+      reviewedAt: new Date().toISOString(),
+      reviewedBy: reviewerName,
+    })
+
+    const docRef = doc(db, FIRESTORE_COLLECTION, submissionId)
+    await setDoc(docRef, {
+      ...approvedItem,
+      status: 'approved',
+      approvedAt: Timestamp.fromDate(new Date(approvedItem.approvedAt)),
+    }, { merge: true })
+
+    return approvedItem
+  } catch (error) {
+    console.warn('Failed to approve submission in Firebase:', error)
+    // Fallback to localStorage
+    const state = readLocalState()
+    const pendingItem = state.pending.find((item) => item.id === submissionId)
+
+    if (!pendingItem) {
+      throw new Error('Pending submission not found')
+    }
+
+    const approvedItem = normalizeSubmission(pendingItem, {
+      status: 'approved',
+      approvedAt: new Date().toISOString(),
+      approvedBy: reviewerName,
+      reviewedAt: new Date().toISOString(),
+      reviewedBy: reviewerName,
+    })
+
+    const updatedState = {
+      pending: state.pending.filter((item) => item.id !== submissionId),
+      approved: [approvedItem, ...state.approved],
+    }
+
+    writeLocalState(updatedState)
+    return approvedItem
   }
-
-  const approvedItem = normalizeSubmission(pendingItem, {
-    status: 'approved',
-    approvedAt: new Date().toISOString(),
-    approvedBy: reviewerName,
-    reviewedAt: new Date().toISOString(),
-    reviewedBy: reviewerName,
-  })
-
-  const updatedState = {
-    pending: state.pending.filter((item) => item.id !== submissionId),
-    approved: [approvedItem, ...state.approved],
-  }
-
-  writeState(updatedState)
-  return approvedItem
 }
 
-export function rejectSubmission(submissionId, reviewerName = 'Admin') {
-  const state = readState()
-  const rejectedItem = state.pending.find((item) => item.id === submissionId)
+export async function rejectSubmission(submissionId, reviewerName = 'Admin') {
+  try {
+    const db = getFirebaseDb()
+    const state = await readState()
+    const rejectedItem = state.pending.find((item) => item.id === submissionId)
 
-  if (!rejectedItem) {
-    throw new Error('Pending submission not found')
+    if (!rejectedItem) {
+      throw new Error('Pending submission not found')
+    }
+
+    const docRef = doc(db, FIRESTORE_COLLECTION, submissionId)
+    await setDoc(docRef, {
+      ...rejectedItem,
+      status: 'rejected',
+      reviewedAt: Timestamp.fromDate(new Date()),
+      reviewedBy: reviewerName,
+    }, { merge: true })
+
+    return normalizeSubmission(rejectedItem, {
+      status: 'rejected',
+      reviewedAt: new Date().toISOString(),
+      reviewedBy: reviewerName,
+    })
+  } catch (error) {
+    console.warn('Failed to reject submission in Firebase:', error)
+    // Fallback to localStorage
+    const state = readLocalState()
+    const rejectedItem = state.pending.find((item) => item.id === submissionId)
+
+    if (!rejectedItem) {
+      throw new Error('Pending submission not found')
+    }
+
+    const updatedState = {
+      pending: state.pending.filter((item) => item.id !== submissionId),
+      approved: state.approved,
+    }
+
+    writeLocalState(updatedState)
+
+    return normalizeSubmission(rejectedItem, {
+      status: 'rejected',
+      reviewedAt: new Date().toISOString(),
+      reviewedBy: reviewerName,
+    })
   }
-
-  const updatedState = {
-    pending: state.pending.filter((item) => item.id !== submissionId),
-    approved: state.approved,
-  }
-
-  writeState(updatedState)
-
-  return normalizeSubmission(rejectedItem, {
-    status: 'rejected',
-    reviewedAt: new Date().toISOString(),
-    reviewedBy: reviewerName,
-  })
 }
 
 export function clearModerationState() {
@@ -143,18 +290,55 @@ export function clearModerationState() {
 }
 
 export function subscribeToModerationChanges(callback) {
-  if (!hasWindow()) {
-    return () => {}
-  }
+  try {
+    const db = getFirebaseDb()
+    const submissionsRef = collection(db, FIRESTORE_COLLECTION)
+    const currentUser = getFirebaseAuth().currentUser
+    const watchedQuery = currentUser
+      ? submissionsRef
+      : query(submissionsRef, where('status', '==', 'approved'))
 
-  const handler = (event) => {
-    if (event.key === STORAGE_KEY) {
-      callback(readState())
+    const unsubscribe = onSnapshot(watchedQuery, (snapshot) => {
+      const pending = []
+      const approved = []
+      
+      snapshot.forEach((doc) => {
+        const data = doc.data()
+        const submission = {
+          ...data,
+          id: doc.id,
+          createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate().toISOString() : data.createdAt,
+          approvedAt: data.approvedAt instanceof Timestamp ? data.approvedAt.toDate().toISOString() : data.approvedAt,
+          reviewedAt: data.reviewedAt instanceof Timestamp ? data.reviewedAt.toDate().toISOString() : data.reviewedAt,
+        }
+        
+        if (data.status === 'approved') {
+          approved.push(submission)
+        } else {
+          pending.push(submission)
+        }
+      })
+      
+      callback({ pending, approved })
+    })
+    
+    return unsubscribe
+  } catch (error) {
+    console.warn('Firebase subscription failed, using localStorage:', error)
+    // Fallback with localStorage events
+    if (!hasWindow()) {
+      return () => {}
     }
-  }
 
-  window.addEventListener('storage', handler)
-  return () => window.removeEventListener('storage', handler)
+    const handler = (event) => {
+      if (event.key === STORAGE_KEY) {
+        callback(readLocalState())
+      }
+    }
+
+    window.addEventListener('storage', handler)
+    return () => window.removeEventListener('storage', handler)
+  }
 }
 
 export default {

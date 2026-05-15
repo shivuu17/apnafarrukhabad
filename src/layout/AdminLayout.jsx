@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
   BellRing,
   LayoutDashboard,
@@ -13,8 +13,11 @@ import {
   TriangleAlert,
   Wallet,
   Shield,
+  Home,
+  LogOut,
 } from 'lucide-react'
 import AFLogo from '../assets/AF.png'
+import useAuth from '../hooks/useAuth'
 
 const navGroups = [
   { label: 'Overview', to: '/admin', icon: LayoutDashboard },
@@ -30,10 +33,21 @@ const navGroups = [
 
 function AdminLayout() {
   const location = useLocation()
+  const navigate = useNavigate()
+  const { logout } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     if (typeof window === 'undefined') return true
     return window.innerWidth >= 1024
   })
+
+  const handleLogout = () => {
+    logout()
+    navigate('/')
+  }
+
+  const handleGoToMainSite = () => {
+    navigate('/')
+  }
 
   const title = useMemo(() => {
     if (location.pathname.includes('/breaking-alerts')) return 'Breaking Alerts'
@@ -85,6 +99,25 @@ function AdminLayout() {
               />
               <Sparkles className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
             </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleGoToMainSite}
+              className="admin-clickable inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white px-3 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50 dark:border-slate-800 dark:bg-slate-900 dark:text-emerald-300"
+            >
+              <Home size={16} />
+              <span className="hidden sm:inline">Main Site</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="admin-clickable inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-100 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300"
+            >
+              <LogOut size={16} />
+              <span className="hidden sm:inline">Logout</span>
+            </button>
           </div>
         </div>
         </div>

@@ -222,7 +222,8 @@ export default function OnboardingProfile() {
         role: values.role,
         bio: values.bio,
         interests: values.interests || [],
-        avatar: values.avatar || avatarPreview || ''
+        avatar: values.avatar || avatarPreview || '',
+        profileCompleted: true
       })
       // navigate to profile or home
       window.location.href = '/profile'
@@ -415,16 +416,6 @@ export default function OnboardingProfile() {
           </div>
         </motion.div>
       </div>
-      {/* sticky mobile CTA */}
-      <div className="fixed bottom-4 left-4 right-4 sm:hidden">
-        <div className="max-w-[900px] mx-auto">
-          <div className="rounded-full shadow-md bg-white p-3 flex items-center justify-between">
-            <div className="text-sm text-neutral-700">Complete profile to get full access</div>
-            <button onClick={() => document.querySelector('form')?.requestSubmit()} className="ml-3 bg-[#0F6B35] text-white px-4 py-2 rounded-full">Complete</button>
-          </div>
-        </div>
-      </div>
-
       <LocationPermissionModal
         isOpen={showPermissionModal}
         onClose={() => setShowPermissionModal(false)}

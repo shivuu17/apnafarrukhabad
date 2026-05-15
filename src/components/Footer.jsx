@@ -16,6 +16,7 @@ function Footer() {
   const [adminPassword, setAdminPassword] = useState('')
   const [adminLoginLoading, setAdminLoginLoading] = useState(false)
   const [adminLoginError, setAdminLoginError] = useState('')
+  const isAdmin = (account) => ['admin', 'superadmin', 'moderator'].includes(String(account?.role || '').trim().toLowerCase()) || Boolean(account?.isAdmin)
 
   const stats = [
     {
@@ -85,7 +86,7 @@ function Footer() {
 
     try {
       const result = await login({ email: adminEmail, password: adminPassword })
-      if (result?.user?.role !== 'admin') {
+      if (!isAdmin(result?.user)) {
         throw new Error('This account does not have admin access')
       }
 
@@ -224,7 +225,7 @@ function Footer() {
       <Modal isOpen={showAdminLogin} onClose={closeAdminLogin} title="Admin sign in" size="sm">
         <form onSubmit={handleAdminLogin} className="space-y-4">
           <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-3 text-sm text-emerald-900">
-            Enter the admin email and password to open the admin panel.
+            Sign in with a Firebase admin account to open the admin panel.
           </div>
 
           <Input
@@ -232,7 +233,7 @@ function Footer() {
             type="email"
             value={adminEmail}
             onChange={(event) => setAdminEmail(event.target.value)}
-            placeholder="admin@example.com"
+            placeholder="Admin email"
             required
           />
 
@@ -241,7 +242,7 @@ function Footer() {
             type="password"
             value={adminPassword}
             onChange={(event) => setAdminPassword(event.target.value)}
-            placeholder="Enter admin password"
+            placeholder="Admin password"
             required
           />
 

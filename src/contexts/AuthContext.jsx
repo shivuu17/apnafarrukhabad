@@ -56,6 +56,30 @@ export function AuthProvider({ children }) {
     return authService.checkUsernameAvailability(username, excludeUid)
   }, [user])
 
+  const sendEmailVerificationCode = useCallback(async (email) => {
+    return authService.sendEmailVerificationCode(email)
+  }, [])
+
+  const verifyEmailCode = useCallback(async (email, otp) => {
+    const result = await authService.verifyEmailCode(email, otp, user?.id)
+    if (result.success) {
+      setUser((prev) => ({ ...(prev || {}), emailVerified: true }))
+    }
+    return result
+  }, [user?.id])
+
+  const sendPhoneVerificationCode = useCallback(async (phone) => {
+    return authService.sendPhoneVerificationCode(phone, user?.id)
+  }, [user?.id])
+
+  const verifyPhoneCode = useCallback(async (phone, otp) => {
+    const result = await authService.verifyPhoneCode(phone, otp, user?.id)
+    if (result.success) {
+      setUser((prev) => ({ ...(prev || {}), phoneVerified: true }))
+    }
+    return result
+  }, [user?.id])
+
   const logout = useCallback(async () => {
     try {
       await authService.logout();
@@ -65,8 +89,32 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
+  const deleteAccount = useCallback(async (password, reason) => {
+    try {
+      await authService.deleteAccount(password, reason);
+      localStorage.removeItem('af_token');
+      setUser(null);
+      return { success: true };
+    } catch (error) {
+      throw error;
+    }
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, signup, logout, updateProfile, checkUsernameAvailability }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      loading, 
+      login, 
+      signup, 
+      logout, 
+      updateProfile, 
+      checkUsernameAvailability, 
+      deleteAccount,
+      sendEmailVerificationCode,
+      verifyEmailCode,
+      sendPhoneVerificationCode,
+      verifyPhoneCode,
+    }}>
       {children}
     </AuthContext.Provider>
   );

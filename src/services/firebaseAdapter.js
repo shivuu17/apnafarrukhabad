@@ -3,10 +3,16 @@ import {
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
   onAuthStateChanged,
+  getIdTokenResult,
   sendPasswordResetEmail,
+  sendEmailVerification as firebaseSendEmailVerification,
 } from 'firebase/auth'
-import { collection, doc, getDoc, getDocs, limit, query, serverTimestamp, setDoc, where } from 'firebase/firestore'
+import { collection, doc, getDoc, getDocs, limit, query, serverTimestamp, setDoc, where, Timestamp } from 'firebase/firestore'
 import { getFirebaseAuth, getFirebaseDb } from './firebaseClient'
+
+function generateOTP() {
+  return Math.floor(100000 + Math.random() * 900000).toString()
+}
 
 function mapUserDoc(uid, fallbackEmail, payload = {}) {
   return {
@@ -31,11 +37,52 @@ function mapUserDoc(uid, fallbackEmail, payload = {}) {
     avatar: payload.avatar || '',
     emailVerified: Boolean(payload.emailVerified),
     phoneVerified: Boolean(payload.phoneVerified),
+    profileCompleted: Boolean(payload.profileCompleted),
   }
 }
 
 function normalizeUsername(value) {
   return String(value || '').trim().replace(/^@/, '').toLowerCase()
+}
+
+function normalizeRoleValue(value) {
+  return String(value || '').trim().toLowerCase().replace(/[\s_-]+/g, '')
+}
+
+function parseAdminEmails() {
+  const raw = String(import.meta.env.VITE_ADMIN_EMAILS || import.meta.env.VITE_ADMIN_EMAIL || '').trim()
+  if (!raw) return []
+
+  return raw
+    .split(/[\s,;]+/)
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean)
+}
+
+function resolveRole({ role, email, claims = {} }) {
+  const normalizedEmail = String(email || '').trim().toLowerCase()
+  const adminEmails = parseAdminEmails()
+  const hasAdminClaim = Boolean(claims.admin || claims.isAdmin || ['admin', 'superadmin', 'moderator'].includes(normalizeRoleValue(claims.role)))
+  const isConfiguredAdmin = normalizedEmail && adminEmails.includes(normalizedEmail)
+  const normalizedRole = normalizeRoleValue(role)
+
+  if (normalizedRole === 'admin' || normalizedRole === 'superadmin' || normalizedRole === 'moderator' || hasAdminClaim || isConfiguredAdmin) {
+    return 'admin'
+  }
+
+  return normalizedRole || 'user'
+}
+
+async function buildFirebaseUserProfile(firebaseUser, claims = {}) {
+  const fallbackRole = resolveRole({ role: firebaseUser?.role, email: firebaseUser?.email, claims })
+
+  return mapUserDoc(firebaseUser.uid, firebaseUser.email, {
+    name: firebaseUser.displayName || firebaseUser.email?.split('@')?.[0] || 'User',
+    email: firebaseUser.email || '',
+    role: fallbackRole,
+    emailVerified: Boolean(firebaseUser.emailVerified),
+    photoURL: firebaseUser.photoURL || '',
+  })
 }
 
 function normalizeAuthError(error) {
@@ -75,6 +122,7 @@ export async function signUp({ name, email, password }) {
       lat: null,
       lng: null,
       locationVerified: false,
+      profileCompleted: false,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     })
@@ -101,14 +149,16 @@ export async function signIn({ email, password }) {
 
   const uid = credential.user.uid
   const snap = await getDoc(doc(db, 'users', uid))
+  const tokenResult = await getIdTokenResult(credential.user)
+  const claims = tokenResult?.claims || {}
 
-  if (!snap.exists()) {
-    await firebaseSignOut(auth)
-    throw new Error('User not exist. Create account for login.')
-  }
-
-  const data = snap.data() || {}
-  const user = mapUserDoc(uid, credential.user.email, data)
+  const data = snap.exists() ? (snap.data() || {}) : {}
+  const user = snap.exists()
+    ? mapUserDoc(uid, credential.user.email, {
+        ...data,
+        role: resolveRole({ role: data.role, email: credential.user.email, claims }),
+      })
+    : await buildFirebaseUserProfile(credential.user, claims)
   const token = await credential.user.getIdToken()
 
   return { user, token }
@@ -133,9 +183,17 @@ export async function getCurrentUser() {
   if (!firebaseUser) return null
 
   const snap = await getDoc(doc(db, 'users', firebaseUser.uid))
-  if (!snap.exists()) return null
+  const tokenResult = await getIdTokenResult(firebaseUser)
+  const claims = tokenResult?.claims || {}
 
-  return mapUserDoc(firebaseUser.uid, firebaseUser.email, snap.data())
+  if (!snap.exists()) {
+    return buildFirebaseUserProfile(firebaseUser, claims)
+  }
+
+  return mapUserDoc(firebaseUser.uid, firebaseUser.email, {
+    ...snap.data(),
+    role: resolveRole({ role: snap.data()?.role, email: firebaseUser.email, claims }),
+  })
 }
 
 export async function resetPassword({ email }) {
@@ -148,7 +206,41 @@ export async function resetPassword({ email }) {
   return { ok: true }
 }
 
-export default { signIn, signUp, signOut, getCurrentUser, resetPassword, updateUserProfile, checkUsernameAvailability }
+export default { signIn, signUp, signOut, getCurrentUser, resetPassword, updateUserProfile, checkUsernameAvailability, deleteAccount, sendEmailVerificationCode, verifyEmailCode, sendPhoneVerificationCode, verifyPhoneCode }
+
+export async function deleteAccount(password, reason) {
+  try {
+    const auth = getFirebaseAuth()
+    const db = getFirebaseDb()
+    const user = auth.currentUser
+    
+    if (!user) {
+      throw new Error('No user logged in')
+    }
+
+    // Verify password by re-authenticating
+    try {
+      await signInWithEmailAndPassword(auth, user.email, password)
+    } catch (error) {
+      throw new Error('Invalid password')
+    }
+
+    // Delete user document from Firestore
+    const userRef = doc(db, 'users', user.uid)
+    await setDoc(userRef, { deletedAt: serverTimestamp(), deletionReason: reason }, { merge: true })
+
+    // Delete auth user
+    await user.delete()
+
+    // Sign out
+    await firebaseSignOut(auth)
+
+    return { success: true }
+  } catch (err) {
+    throw new Error(err.message || 'Failed to delete account')
+  }
+}
+
 
 export async function updateUserProfile(uid, payload = {}) {
   try {
@@ -196,4 +288,118 @@ export async function checkUsernameAvailability(username, excludeUid = '') {
   }
 
   return true
+}
+
+export async function sendEmailVerificationCode(email) {
+  try {
+    const auth = getFirebaseAuth()
+
+    const currentUser = auth.currentUser
+    if (!currentUser) {
+      throw new Error('Please log in again to send verification email.')
+    }
+
+    if (email && currentUser.email && String(currentUser.email).toLowerCase() !== String(email).toLowerCase()) {
+      throw new Error('Logged in account email does not match profile email. Please log in with the same email.')
+    }
+
+    await firebaseSendEmailVerification(currentUser)
+    return { success: true, message: 'Verification link sent to your email' }
+  } catch (error) {
+    throw new Error(error.message || 'Failed to send verification code')
+  }
+}
+
+export async function verifyEmailCode(email, otp, userId) {
+  try {
+    const auth = getFirebaseAuth()
+    const db = getFirebaseDb()
+    const currentUser = auth.currentUser
+
+    if (!currentUser) {
+      throw new Error('Please log in again to verify email status.')
+    }
+
+    await currentUser.reload()
+    if (!currentUser.emailVerified) {
+      throw new Error('Email not verified yet. Please click the link in your inbox, then try again.')
+    }
+
+    // Mark email as verified
+    if (userId) {
+      await setDoc(doc(db, 'users', userId), {
+        emailVerified: true,
+        email: currentUser.email || email,
+        updatedAt: serverTimestamp(),
+      }, { merge: true })
+    }
+
+    return { success: true, message: 'Email verified successfully' }
+  } catch (error) {
+    throw new Error(error.message || 'Verification failed')
+  }
+}
+
+export async function sendPhoneVerificationCode(phone, userId) {
+  try {
+    const db = getFirebaseDb()
+    const otp = generateOTP()
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
+    
+    const verificationRef = doc(db, 'phoneVerifications', phone)
+    await setDoc(verificationRef, {
+      phone,
+      userId,
+      otp,
+      expiresAt: Timestamp.fromDate(expiresAt),
+      attempts: 0,
+      createdAt: serverTimestamp(),
+    }, { merge: true })
+    
+    // In production, send OTP via SMS service (Twilio, etc.)
+    console.log(`Phone verification OTP for ${phone}: ${otp}`)
+    
+    return { success: true, message: 'Verification code sent to your phone' }
+  } catch (error) {
+    throw new Error(error.message || 'Failed to send verification code')
+  }
+}
+
+export async function verifyPhoneCode(phone, otp, userId) {
+  try {
+    const db = getFirebaseDb()
+    const verificationRef = doc(db, 'phoneVerifications', phone)
+    const snap = await getDoc(verificationRef)
+    
+    if (!snap.exists()) {
+      throw new Error('No verification code found')
+    }
+    
+    const data = snap.data()
+    const expiresAt = data.expiresAt.toDate()
+    
+    if (new Date() > expiresAt) {
+      throw new Error('Verification code expired')
+    }
+    
+    if (data.otp !== otp) {
+      throw new Error('Invalid verification code')
+    }
+    
+    // Mark phone as verified
+    if (userId) {
+      await setDoc(doc(db, 'users', userId), {
+        phoneVerified: true,
+        phone: phone,
+        updatedAt: serverTimestamp(),
+      }, { merge: true })
+    }
+    
+    // Delete verification record
+    await setDoc(verificationRef, { otp: null, expiresAt: null }, { merge: true })
+    
+    return { success: true, message: 'Phone verified successfully' }
+  } catch (error) {
+    throw new Error(error.message || 'Verification failed')
+  }
 }

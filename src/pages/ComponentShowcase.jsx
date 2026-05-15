@@ -30,8 +30,13 @@ import {
   ToastContainer,
   LazyImage
 } from './ui'
-import { mockNews, mockMarketplaceItems, mandiRates, weatherData, events } from '@/data/mockData'
 import { Heart, MessageCircle, Share2, MapPin, Phone } from 'lucide-react'
+
+const mockNews = []
+const mockMarketplaceItems = []
+const mandiRates = []
+const weatherData = []
+const events = []
 
 export const ComponentShowcase = () => {
   // State for interactive components

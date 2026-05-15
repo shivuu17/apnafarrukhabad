@@ -164,7 +164,9 @@ export default function Form() {
 ### Feature Cards
 ```jsx
 import { NewsCard, MarketplaceCard, MandiRateCard } from '@/components/ui'
-import { mockNews, mockMarketplaceItems, mandiRates } from '@/data/mockData'
+const mockNews = []
+const mockMarketplaceItems = []
+const mandiRates = []
 
 export default function Feed() {
   return (

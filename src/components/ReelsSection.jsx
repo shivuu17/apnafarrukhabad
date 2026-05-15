@@ -8,6 +8,17 @@ function ReelsSection() {
   const videoRefs = useRef([])
   const [playing, setPlaying] = useState({})
 
+  if (!reels.length) {
+    return (
+      <section className="px-3 pt-6 sm:px-4 md:px-6">
+        <div className="mx-auto max-w-xs sm:max-w-sm md:max-w-2xl lg:max-w-6xl rounded-[22px] border border-slate-200 bg-white p-5 shadow-soft">
+          <SectionHeader title="Video Reels" subtitle="No live reels yet" />
+          <p className="mt-3 text-sm text-slate-600">Connect your video feed to show recent short clips here.</p>
+        </div>
+      </section>
+    )
+  }
+
   const handlePlay = (index) => {
     const video = videoRefs.current[index]
     if (!video) return

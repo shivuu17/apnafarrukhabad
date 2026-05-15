@@ -6,6 +6,17 @@ import { villages } from '../data/homeData'
 function VillageExplorerSection() {
   const navigate = useNavigate()
 
+  if (!villages.length) {
+    return (
+      <section className="px-3 pt-6 sm:px-4 md:px-6">
+        <div className="mx-auto max-w-6xl rounded-[22px] border border-slate-200 bg-white p-5 shadow-soft">
+          <SectionHeader title="Village Explorer" subtitle="No live village profiles yet" />
+          <p className="mt-3 text-sm text-slate-600">Add village data from your backend to populate this area.</p>
+        </div>
+      </section>
+    )
+  }
+
   return (
     <section className="px-3 pt-6 sm:px-4 md:px-6">
       <div className="mx-auto max-w-6xl">

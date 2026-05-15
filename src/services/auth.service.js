@@ -41,4 +41,39 @@ export async function resetPassword({ email }) {
   throw new Error('Reset password not supported by adapter');
 }
 
-export default { login, signup, logout, getCurrentUser, updateUserProfile, checkUsernameAvailability };
+export async function deleteAccount(password, reason) {
+  if (typeof adapter.deleteAccount === 'function') {
+    return adapter.deleteAccount(password, reason);
+  }
+  throw new Error('Delete account not supported by adapter');
+}
+
+export async function sendEmailVerificationCode(email) {
+  if (typeof adapter.sendEmailVerificationCode === 'function') {
+    return adapter.sendEmailVerificationCode(email);
+  }
+  throw new Error('Email verification not supported by adapter');
+}
+
+export async function verifyEmailCode(email, otp, userId) {
+  if (typeof adapter.verifyEmailCode === 'function') {
+    return adapter.verifyEmailCode(email, otp, userId);
+  }
+  throw new Error('Email verification not supported by adapter');
+}
+
+export async function sendPhoneVerificationCode(phone, userId) {
+  if (typeof adapter.sendPhoneVerificationCode === 'function') {
+    return adapter.sendPhoneVerificationCode(phone, userId);
+  }
+  throw new Error('Phone verification not supported by adapter');
+}
+
+export async function verifyPhoneCode(phone, otp, userId) {
+  if (typeof adapter.verifyPhoneCode === 'function') {
+    return adapter.verifyPhoneCode(phone, otp, userId);
+  }
+  throw new Error('Phone verification not supported by adapter');
+}
+
+export default { login, signup, logout, getCurrentUser, updateUserProfile, checkUsernameAvailability, resetPassword, deleteAccount, sendEmailVerificationCode, verifyEmailCode, sendPhoneVerificationCode, verifyPhoneCode };

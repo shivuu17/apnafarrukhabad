@@ -1,11 +1,56 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { ChevronRight, MapPin } from 'lucide-react'
 import { feedData } from '../data/homeData'
+import { getApprovedSubmissions, subscribeToModerationChanges } from '../services/mediaModeration.service'
+import { optimizeCloudinaryImageUrl } from '../utils/imageOptimization'
 
 export default function HeroSection() {
-  const featured = feedData[1]
-  const stacked = feedData.slice(2, 5)
+  const [liveItems, setLiveItems] = useState([])
+
+  useEffect(() => {
+    let mounted = true
+
+    const loadLiveItems = async () => {
+      try {
+        const approved = await getApprovedSubmissions()
+        if (mounted) setLiveItems(approved || [])
+      } catch {
+        if (mounted) setLiveItems([])
+      }
+    }
+
+    loadLiveItems()
+
+    const unsubscribe = subscribeToModerationChanges((state) => {
+      if (mounted) setLiveItems(state.approved || [])
+    })
+
+    return () => {
+      mounted = false
+      if (unsubscribe) unsubscribe()
+    }
+  }, [])
+
+  const featured = liveItems[0] || feedData[0]
+  const stacked = liveItems.slice(1, 4)
+  const featuredImage = optimizeCloudinaryImageUrl(featured?.imageUrl || featured?.image, { width: 1600, height: 900, crop: 'fill' })
+
+  if (!featured) {
+    return (
+      <section className="px-3 pt-4 sm:px-4 lg:px-6 pb-3">
+        <div className="mx-auto max-w-6xl">
+          <div className="rounded-[24px] border border-slate-200 bg-white p-6 shadow-soft">
+            <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Live newsroom</p>
+            <h2 className="mt-2 text-2xl font-black text-slate-900">No live stories yet</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+              Publish or approve a report to populate the homepage with current local news.
+            </p>
+          </div>
+        </div>
+      </section>
+    )
+  }
 
   const handleReadArticle = () => {
     alert(`📖 Opening article: "${featured.title}"`)
@@ -33,8 +78,12 @@ export default function HeroSection() {
               {/* Image with gradient overlay */}
               <div className="relative h-[280px] sm:h-[340px] md:h-[380px]">
                 <img
-                  src={featured.image}
+                  src={featuredImage}
                   alt={featured.title}
+                  loading="eager"
+                  fetchPriority="high"
+                  decoding="async"
+                  sizes="(min-width: 1024px) 58vw, 100vw"
                   className="absolute inset-0 h-full w-full object-cover"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
@@ -49,7 +98,7 @@ export default function HeroSection() {
                 <div className="absolute inset-x-0 bottom-0 p-5 sm:p-6 text-white">
                   {/* Village badge */}
                   <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500 px-3.5 py-1.5 text-[12px] font-bold shadow-lg">
-                    <MapPin size={13} /> {featured.village}
+                    <MapPin size={13} /> {featured.village || 'Farrukhabad'}
                   </div>
 
                   {/* Headline */}
@@ -71,8 +120,8 @@ export default function HeroSection() {
                         className="h-10 w-10 rounded-full object-cover border border-white/20"
                       />
                       <div className="text-sm">
-                        <div className="font-bold">{featured.reporter}</div>
-                        <div className="text-xs text-white/70">{featured.time} · {featured.views}k views</div>
+                        <div className="font-bold">{featured.reporterName || featured.reporter || 'Community Contributor'}</div>
+                        <div className="text-xs text-white/70">{featured.createdAt ? new Date(featured.createdAt).toLocaleString() : 'Live now'}</div>
                       </div>
                     </div>
                     <motion.button 
@@ -101,8 +150,10 @@ export default function HeroSection() {
                 {/* Thumbnail left */}
                 <div className="relative h-20 w-28 flex-shrink-0 overflow-hidden rounded-[12px] bg-slate-200">
                   <img
-                    src={item.image}
+                    src={optimizeCloudinaryImageUrl(item.imageUrl || item.image, { width: 480, height: 320, crop: 'fill' })}
                     alt={item.title}
+                    loading="lazy"
+                    decoding="async"
                     className="h-full w-full object-cover"
                   />
                 </div>
@@ -110,17 +161,20 @@ export default function HeroSection() {
                 {/* Content right */}
                 <div className="flex-1 min-w-0">
                   <div className="inline-flex rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700 mb-1">
-                    {item.category}
+                    {item.category || 'Update'}
                   </div>
-                  <h3 className="text-[14px] font-black leading-[1.3] text-slate-900 line-clamp-2">
-                    {item.title}
-                  </h3>
+                    <h3 className="text-[14px] font-black leading-[1.3] text-slate-900 line-clamp-2">{item.title}</h3>
                   <div className="mt-1.5 text-xs text-slate-500">
-                    {item.time} · {item.village}
+                      {item.createdAt ? new Date(item.createdAt).toLocaleDateString() : 'Recently approved'} · {item.village || 'Farrukhabad'}
                   </div>
                 </div>
               </motion.article>
             ))}
+              {!stacked.length && (
+                <div className="rounded-[18px] border border-dashed border-slate-200 bg-white p-4 text-sm text-slate-500 shadow-sm">
+                  More approved reports will appear here as they are published.
+                </div>
+              )}
           </div>
 
           {/* RIGHT: Weather Widget (2 cols) */}

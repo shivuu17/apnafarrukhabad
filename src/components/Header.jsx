@@ -13,6 +13,7 @@ function Header({ scrolled }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [villagesMenuOpen, setVillagesMenuOpen] = useState(false)
   const [profileMenuOpen, setProfileMenuOpen] = useState(false)
+  const isAdmin = ['admin', 'superadmin', 'moderator'].includes(String(user?.role || '').trim().toLowerCase()) || Boolean(user?.isAdmin)
 
   const handleSearch = () => navigate('/news')
   const handleAbout = () => navigate('/about')
@@ -109,7 +110,7 @@ function Header({ scrolled }) {
         <div className="flex items-center justify-between gap-3">
           {/* Left: Logo & tagline */}
           <div className="flex min-w-0 items-center gap-3">
-            <img src={AFLogo} alt="ApnaFarrukhabad" loading="lazy" className="h-10 w-10 rounded-2xl object-cover shadow-sm sm:h-12 sm:w-12" />
+            <img src={AFLogo} alt="ApnaFarrukhabad" loading="eager" decoding="async" className="h-10 w-10 rounded-2xl object-cover shadow-sm sm:h-12 sm:w-12" />
             <div className="min-w-0">
               <p className="truncate text-base font-extrabold text-[#0f6a2f] sm:text-xl">ApnaFarrukhabad</p>
               <p className="truncate text-[11px] font-semibold text-slate-500 sm:text-[12px]">हर खबर, हर गांव, हर इंसान की बात</p>
@@ -234,7 +235,7 @@ function Header({ scrolled }) {
                     <div className="border-b border-slate-100 px-4 py-3">
                       <p className="text-sm font-bold text-slate-900">{user.name}</p>
                       <p className="text-xs text-slate-500">{user.email}</p>
-                      {user.role === 'admin' && <p className="mt-1 text-xs font-semibold text-emerald-700">👨‍💼 Admin</p>}
+                      {isAdmin && <p className="mt-1 text-xs font-semibold text-emerald-700">👨‍💼 Admin</p>}
                     </div>
                     <button
                       onClick={handleProfile}
@@ -242,7 +243,7 @@ function Header({ scrolled }) {
                     >
                       My Profile
                     </button>
-                    {user.role === 'admin' && (
+                    {isAdmin && (
                       <button
                         onClick={() => navigate('/admin')}
                         className="block w-full text-left px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 border-t border-slate-100"
@@ -292,85 +293,90 @@ function Header({ scrolled }) {
       </motion.div>
 
       {mobileMenuOpen && (
-        <div className="mx-auto mb-3 max-w-6xl px-3 sm:hidden">
-          <div className="rounded-[22px] border border-emerald-100 bg-white p-3 shadow-lg">
-            <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-3">
+        <div className="fixed inset-0 z-50 sm:hidden">
+          <motion.button
+            type="button"
+            aria-label="Close menu"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setMobileMenuOpen(false)}
+            className="absolute inset-0 bg-black/25"
+          />
+
+          <motion.div
+            initial={{ x: '100%' }}
+            animate={{ x: 0 }}
+            exit={{ x: '100%' }}
+            transition={{ type: 'spring', stiffness: 280, damping: 30 }}
+            className="absolute right-0 top-0 flex h-full w-[50vw] min-w-[280px] max-w-[360px] flex-col border-l border-emerald-100 bg-white shadow-2xl"
+          >
+            <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-4">
               <p className="text-sm font-bold text-slate-900">Menu</p>
-              <button
-                type="button"
-                onClick={toggleLanguage}
-                className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700"
-              >
-                {language === 'en' ? '🇮🇳 हिंदी' : '🇬🇧 English'}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={toggleLanguage}
+                  className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700"
+                >
+                  {language === 'en' ? '🇮🇳 हिंदी' : '🇬🇧 English'}
+                </button>
+                <button
+                  type="button"
+                  aria-label="Close menu"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="grid h-8 w-8 place-items-center rounded-full border border-slate-200 text-slate-600 transition hover:bg-slate-50 active:scale-95"
+                >
+                  ×
+                </button>
+              </div>
             </div>
 
-            <div className="mt-3 grid grid-cols-2 gap-2.5 text-sm font-semibold text-slate-700">
-              <button onClick={() => handleMobileNavigate('/')} className="rounded-xl bg-slate-50 px-4 py-3 text-left hover:bg-slate-100 active:bg-slate-200 transition">{t('home')}</button>
-              <button onClick={() => handleMobileNavigate('/news')} className="rounded-xl bg-slate-50 px-4 py-3 text-left hover:bg-slate-100 active:bg-slate-200 transition">{t('news')}</button>
-              <button onClick={() => handleMobileNavigate('/categories')} className="rounded-xl bg-slate-50 px-4 py-3 text-left hover:bg-slate-100 active:bg-slate-200 transition">{t('categories')}</button>
-              <button onClick={() => handleMobileNavigate('/villages')} className="rounded-xl bg-slate-50 px-4 py-3 text-left hover:bg-slate-100 active:bg-slate-200 transition">{t('villages')}</button>
-              <button onClick={() => handleMobileNavigate('/videos')} className="rounded-xl bg-slate-50 px-4 py-3 text-left hover:bg-slate-100 active:bg-slate-200 transition">{t('videos')}</button>
-              <button onClick={() => handleMobileNavigate('/report')} className="rounded-xl bg-slate-50 px-4 py-3 text-left hover:bg-slate-100 active:bg-slate-200 transition">{t('report')}</button>
-              <button onClick={() => handleMobileNavigate('/trending')} className="rounded-xl bg-slate-50 px-4 py-3 text-left hover:bg-slate-100 active:bg-slate-200 transition">{t('trending')}</button>
-              <button onClick={() => handleMobileNavigate('/login')} className="rounded-xl bg-emerald-50 px-4 py-3 text-left font-bold text-emerald-700 hover:bg-emerald-100 active:bg-emerald-200 transition">{t('login')}</button>
-              <button onClick={() => handleMobileNavigate('/signup')} className="rounded-xl bg-[#0f6a2f] px-4 py-3 text-left font-bold text-white hover:bg-[#0b5a28] active:bg-[#09472a] transition">{t('signup')}</button>
-              <button onClick={() => handleMobileNavigate('/about')} className="rounded-xl bg-slate-50 px-4 py-3 text-left hover:bg-slate-100 active:bg-slate-200 transition">{t('about')}</button>
-              <button onClick={() => handleMobileNavigate('/contact')} className="rounded-xl bg-slate-50 px-4 py-3 text-left hover:bg-slate-100 active:bg-slate-200 transition">{t('contact')}</button>
+            <div className="flex-1 overflow-y-auto px-3 py-3">
+              <div className="grid grid-cols-1 gap-2.5 text-sm font-semibold text-slate-700">
+                <button onClick={() => handleMobileNavigate('/')} className="rounded-xl bg-slate-50 px-4 py-3 text-left hover:bg-slate-100 active:bg-slate-200 transition">{t('home')}</button>
+                <button onClick={() => handleMobileNavigate('/news')} className="rounded-xl bg-slate-50 px-4 py-3 text-left hover:bg-slate-100 active:bg-slate-200 transition">{t('news')}</button>
+                <button onClick={() => handleMobileNavigate('/categories')} className="rounded-xl bg-slate-50 px-4 py-3 text-left hover:bg-slate-100 active:bg-slate-200 transition">{t('categories')}</button>
+                <button onClick={() => handleMobileNavigate('/villages')} className="rounded-xl bg-slate-50 px-4 py-3 text-left hover:bg-slate-100 active:bg-slate-200 transition">{t('villages')}</button>
+                <button onClick={() => handleMobileNavigate('/videos')} className="rounded-xl bg-slate-50 px-4 py-3 text-left hover:bg-slate-100 active:bg-slate-200 transition">{t('videos')}</button>
+                <button onClick={() => handleMobileNavigate('/report')} className="rounded-xl bg-slate-50 px-4 py-3 text-left hover:bg-slate-100 active:bg-slate-200 transition">{t('report')}</button>
+                <button onClick={() => handleMobileNavigate('/trending')} className="rounded-xl bg-slate-50 px-4 py-3 text-left hover:bg-slate-100 active:bg-slate-200 transition">{t('trending')}</button>
+                <button onClick={() => handleMobileNavigate('/about')} className="rounded-xl bg-slate-50 px-4 py-3 text-left hover:bg-slate-100 active:bg-slate-200 transition">{t('about')}</button>
+                <button onClick={() => handleMobileNavigate('/contact')} className="rounded-xl bg-slate-50 px-4 py-3 text-left hover:bg-slate-100 active:bg-slate-200 transition">{t('contact')}</button>
+              </div>
             </div>
 
-            {user && (
-              <div className="mt-3 border-t border-slate-100 pt-3 pb-3">
-                <div className="rounded-lg bg-emerald-50 p-3 mb-3">
-                  <p className="text-sm font-bold text-emerald-700">{user.name}</p>
-                  <p className="text-xs text-slate-600">{user.email}</p>
-                  {user.role === 'admin' && <p className="mt-1 text-xs font-semibold text-emerald-700">👨‍💼 Admin</p>}
+            <div className="border-t border-slate-100 p-3 pb-24">
+              {user ? (
+                <div className="space-y-2">
+                  <div className="rounded-lg bg-emerald-50 p-3">
+                    <p className="text-sm font-bold text-emerald-700">{user.name}</p>
+                    <p className="text-xs text-slate-600">{user.email}</p>
+                    {isAdmin && <p className="mt-1 text-xs font-semibold text-emerald-700">👨‍💼 Admin</p>}
+                  </div>
+                  {isAdmin && (
+                    <button
+                      onClick={() => handleMobileNavigate('/admin')}
+                      className="block w-full rounded-xl bg-slate-50 px-4 py-2.5 text-left text-sm font-semibold text-slate-700 hover:bg-slate-100"
+                    >
+                      Admin Panel
+                    </button>
+                  )}
+                  <button
+                    onClick={handleLogout}
+                    className="block w-full rounded-xl bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-100"
+                  >
+                    Logout
+                  </button>
                 </div>
-                {user.role === 'admin' && (
-                  <button
-                    onClick={() => handleMobileNavigate('/admin')}
-                    className="block w-full mb-2 text-left px-4 py-2.5 rounded-xl bg-slate-50 text-sm font-semibold text-slate-700 hover:bg-slate-100"
-                  >
-                    Admin Panel
-                  </button>
-                )}
-                <button
-                  onClick={() => handleMobileNavigate('/profile')}
-                  className="block w-full mb-2 text-left px-4 py-2.5 rounded-xl bg-slate-50 text-sm font-semibold text-slate-700 hover:bg-slate-100"
-                >
-                  My Profile
-                </button>
-                <button
-                  onClick={handleLogout}
-                  className="block w-full px-4 py-2.5 rounded-xl bg-red-50 text-sm font-semibold text-red-600 hover:bg-red-100"
-                >
-                  Logout
-                </button>
-              </div>
-            )}
-            {!user && (
-              <div className="grid gap-2 mt-3 border-t border-slate-100 pt-3">
-                <button onClick={() => handleMobileNavigate('/login')} className="rounded-xl bg-emerald-50 px-4 py-3 text-left font-bold text-emerald-700 hover:bg-emerald-100 active:bg-emerald-200 transition">{t('login')}</button>
-                <button onClick={() => handleMobileNavigate('/signup')} className="rounded-xl bg-[#0f6a2f] px-4 py-3 text-left font-bold text-white hover:bg-[#0b5a28] active:bg-[#09472a] transition">{t('signup')}</button>
-              </div>
-            )}
-
-            <div className="mt-3 border-t border-slate-100 pt-3">
-              <p className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-400">Villages</p>
-              <div className="grid grid-cols-2 gap-2 text-xs font-semibold text-slate-700">
-                {villages.map((village) => (
-                  <button
-                    key={village.slug}
-                    type="button"
-                    onClick={() => handleMobileNavigate(`/villages?village=${encodeURIComponent(village.slug)}`)}
-                    className="rounded-xl border border-slate-200 px-3 py-2 text-left"
-                  >
-                    {village.name}
-                  </button>
-                ))}
-              </div>
+              ) : (
+                <div className="grid gap-2">
+                  <button onClick={() => handleMobileNavigate('/login')} className="rounded-xl bg-emerald-50 px-4 py-3 text-left font-bold text-emerald-700 hover:bg-emerald-100 active:bg-emerald-200 transition">{t('login')}</button>
+                  <button onClick={() => handleMobileNavigate('/signup')} className="rounded-xl bg-[#0f6a2f] px-4 py-3 text-left font-bold text-white hover:bg-[#0b5a28] active:bg-[#09472a] transition">{t('signup')}</button>
+                </div>
+              )}
             </div>
-          </div>
+          </motion.div>
         </div>
       )}
     </header>
