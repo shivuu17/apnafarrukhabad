@@ -1,4 +1,4 @@
-import { collection, doc, getDoc, getDocs, setDoc, query, where, onSnapshot, deleteField, Timestamp } from 'firebase/firestore'
+import { collection, doc, getDocs, setDoc, deleteDoc, query, where, onSnapshot, Timestamp } from 'firebase/firestore'
 import { getFirebaseAuth, getFirebaseDb } from './firebaseClient'
 
 const STORAGE_KEY = 'af_media_moderation_v1'
@@ -283,6 +283,38 @@ export async function rejectSubmission(submissionId, reviewerName = 'Admin') {
   }
 }
 
+export async function deleteSubmission(submissionId) {
+  try {
+    const db = getFirebaseDb()
+    const docRef = doc(db, FIRESTORE_COLLECTION, submissionId)
+    await deleteDoc(docRef)
+    // After successful deletion in Firestore, ensure localStorage fallback
+    // removes the item as well so anonymous clients receive the update.
+    try {
+      const state = readLocalState()
+      const updated = {
+        pending: state.pending.filter((it) => it.id !== submissionId),
+        approved: state.approved.filter((it) => it.id !== submissionId),
+      }
+      writeLocalState(updated)
+    } catch (e) {
+      // ignore local write errors
+    }
+    return true
+  } catch (error) {
+    console.warn('Failed to delete submission in Firebase:', error)
+
+    const state = readLocalState()
+    const updatedState = {
+      pending: state.pending.filter((item) => item.id !== submissionId),
+      approved: state.approved.filter((item) => item.id !== submissionId),
+    }
+
+    writeLocalState(updatedState)
+    return true
+  }
+}
+
 export function clearModerationState() {
   if (!hasWindow()) return
   window.localStorage.removeItem(STORAGE_KEY)
@@ -294,6 +326,24 @@ export function subscribeToModerationChanges(callback) {
     const db = getFirebaseDb()
     const submissionsRef = collection(db, FIRESTORE_COLLECTION)
     const currentUser = getFirebaseAuth().currentUser
+
+    // Public pages do not need a live Firestore listener; localStorage keeps
+    // same-device updates responsive without triggering permission errors.
+    if (!currentUser) {
+      if (!hasWindow()) {
+        return () => {}
+      }
+
+      const handler = (event) => {
+        if (event.key === STORAGE_KEY) {
+          callback(readLocalState())
+        }
+      }
+
+      window.addEventListener('storage', handler)
+      return () => window.removeEventListener('storage', handler)
+    }
+
     const watchedQuery = currentUser
       ? submissionsRef
       : query(submissionsRef, where('status', '==', 'approved'))
@@ -320,6 +370,9 @@ export function subscribeToModerationChanges(callback) {
       })
       
       callback({ pending, approved })
+    }, (error) => {
+      console.warn('Firebase subscription failed, using localStorage fallback:', error)
+      callback(readLocalState())
     })
     
     return unsubscribe
@@ -348,6 +401,7 @@ export default {
   createPendingSubmission,
   approveSubmission,
   rejectSubmission,
+  deleteSubmission,
   clearModerationState,
   subscribeToModerationChanges,
 }

@@ -12,6 +12,7 @@ import { Input, TextArea } from '../components/ui/FormInputs'
 import { Button } from '../components/ui/Button'
 import { Avatar } from '../components/Layout'
 import cloudinary from '../services/cloudinary.service'
+import { compressImage } from '../utils/imageCompress'
 import useLocation from '../hooks/useLocation'
 import LocationPermissionModal from '../components/location/LocationPermissionModal'
 import LocationConfirmCard from '../components/location/LocationConfirmCard'
@@ -21,8 +22,12 @@ import { CheckCircle2, XCircle, Loader2 } from 'lucide-react'
 import { buildDisplayName } from '../services/locationService'
 
 function ProfilePage() {
-  const { user, updateProfile, checkUsernameAvailability } = useAuth()
+  const { user, updateProfile, checkUsernameAvailability, deleteAccount } = useAuth()
   const [editing, setEditing] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [deletePassword, setDeletePassword] = useState('')
+  const [deleteReason, setDeleteReason] = useState('')
+  const [deletingAccount, setDeletingAccount] = useState(false)
 
   const roles = [
     'Citizen Reporter',
@@ -51,6 +56,8 @@ function ProfilePage() {
   const schema = z.object({
     name: z.string().min(2, 'Enter your full name'),
     username: z.string().min(3, 'Choose a username').regex(/^@?\w{3,}$/, 'Username must be letters, numbers or underscore'),
+    email: z.string().min(1, 'Enter your email').email('Enter a valid email'),
+    phone: z.string().min(10, 'Enter your phone number').regex(/^[0-9+()\-\s]{10,}$/, 'Enter a valid phone number'),
     village: z.string().min(1, 'Select your village'),
     block: z.string().optional(),
     district: z.string().optional(),
@@ -93,6 +100,8 @@ function ProfilePage() {
   const defaultValues = useMemo(() => ({
     name: user?.name || '',
     username: user?.username || '',
+    email: user?.email || '',
+    phone: user?.phone || '',
     village: user?.village || initialLocation?.name || '',
     block: user?.block || '',
     district: user?.district || initialLocation?.district || 'Farrukhabad',
@@ -107,6 +116,7 @@ function ProfilePage() {
     handleSubmit,
     watch,
     setValue,
+    reset,
     formState: { errors, isSubmitting }
   } = useForm({ resolver: zodResolver(schema), defaultValues })
 
@@ -130,6 +140,13 @@ function ProfilePage() {
       setShowPermissionModal(false)
     }
   }, [location, setValue])
+
+  useEffect(() => {
+    if (editing) return
+    reset(defaultValues)
+    setAvatarPreview(user?.avatar || '')
+    setLocationConfirmed(Boolean(user?.locationVerified || initialLocation))
+  }, [editing, defaultValues, reset, user?.avatar, user?.locationVerified, initialLocation])
 
   useEffect(() => {
     const normalized = String(usernameValue || '').trim().replace(/^@/, '').toLowerCase()
@@ -162,7 +179,15 @@ function ProfilePage() {
     if (!file) return
     setUploading(true)
     try {
-      const res = await cloudinary.uploadImage(file)
+      let fileToUpload = file
+      try {
+        fileToUpload = await compressImage(file, { maxSize: 300 * 1024 })
+      } catch (e) {
+        // compression failed — fallback to original file
+        // eslint-disable-next-line no-console
+        console.warn('Profile image compression failed, uploading original', e)
+      }
+      const res = await cloudinary.uploadImage(fileToUpload)
       setAvatarPreview(res.secureUrl)
       setValue('avatar', res.secureUrl)
     } catch (err) {
@@ -216,6 +241,8 @@ function ProfilePage() {
       await updateProfile({
         name: values.name,
         username: values.username.replace(/^@/, ''),
+        email: values.email,
+        phone: values.phone,
         village: values.village,
         block: values.block,
         district: values.district || 'Farrukhabad',
@@ -233,7 +260,6 @@ function ProfilePage() {
         profileCompleted: true
       })
       setEditing(false)
-      alert('Profile saved')
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error(err)
@@ -245,6 +271,8 @@ function ProfilePage() {
     // restore form defaults and previews
     setValue('name', defaultValues.name)
     setValue('username', defaultValues.username)
+    setValue('email', defaultValues.email)
+    setValue('phone', defaultValues.phone)
     setValue('village', defaultValues.village)
     setValue('block', defaultValues.block)
     setValue('district', defaultValues.district)
@@ -255,6 +283,29 @@ function ProfilePage() {
     setAvatarPreview(user?.avatar || '')
     setLocationConfirmed(Boolean(user?.locationVerified || initialLocation))
     setEditing(false)
+  }
+
+  const handleDeleteAccount = async () => {
+    if (!deletePassword.trim()) {
+      alert('Please enter your password to confirm account deletion')
+      return
+    }
+
+    const confirmed = window.confirm('This will permanently delete your account. Continue?')
+    if (!confirmed) return
+
+    try {
+      setDeletingAccount(true)
+      await deleteAccount(deletePassword, deleteReason)
+      setShowDeleteModal(false)
+      setDeletePassword('')
+      setDeleteReason('')
+      window.location.href = '/'
+    } catch (error) {
+      alert(error?.message || 'Failed to delete account')
+    } finally {
+      setDeletingAccount(false)
+    }
   }
 
   return (
@@ -349,6 +400,26 @@ function ProfilePage() {
                           <span className="text-slate-500">example: @ravikumar</span>
                         )}
                       </div>
+                    </div>
+
+                    <div className="col-span-2 sm:col-span-1">
+                      <Input
+                        label="Email"
+                        type="email"
+                        placeholder="Enter your email"
+                        {...register('email')}
+                        error={errors.email?.message}
+                      />
+                    </div>
+
+                    <div className="col-span-2 sm:col-span-1">
+                      <Input
+                        label="Phone Number"
+                        type="tel"
+                        placeholder="Enter your phone number"
+                        {...register('phone')}
+                        error={errors.phone?.message}
+                      />
                     </div>
 
                     <input type="hidden" {...register('village')} />
@@ -461,6 +532,18 @@ function ProfilePage() {
             )}
           </div>
 
+          <div className="mt-6 rounded-[24px] border border-rose-200 bg-rose-50 p-4 shadow-soft">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="text-lg font-black text-rose-700">Delete Account</h3>
+                <p className="mt-1 text-sm text-rose-700/80">Permanently remove your profile, login, and saved data.</p>
+              </div>
+              <Button type="button" variant="outline" onClick={() => setShowDeleteModal(true)}>
+                Delete My Account
+              </Button>
+            </div>
+          </div>
+
           <LocationPermissionModal
             isOpen={showPermissionModal}
             onClose={() => setShowPermissionModal(false)}
@@ -469,6 +552,45 @@ function ProfilePage() {
             loading={isDetecting}
             error={locationError}
           />
+
+          {showDeleteModal && (
+            <Modal isOpen={showDeleteModal} onClose={() => setShowDeleteModal(false)} title="Delete Account" size="sm">
+              <div className="space-y-4">
+                <div className="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+                  This action is permanent. Your account will be removed after confirmation.
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-800">Password</label>
+                  <Input
+                    type="password"
+                    value={deletePassword}
+                    onChange={(event) => setDeletePassword(event.target.value)}
+                    placeholder="Enter your password"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-800">Reason (optional)</label>
+                  <TextArea
+                    value={deleteReason}
+                    onChange={(event) => setDeleteReason(event.target.value)}
+                    placeholder="Tell us why you are leaving"
+                    rows={3}
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-2">
+                  <Button type="button" variant="outline" onClick={() => setShowDeleteModal(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="button" variant="primary" loading={deletingAccount} onClick={handleDeleteAccount}>
+                    Delete Account
+                  </Button>
+                </div>
+              </div>
+            </Modal>
+          )}
 
           {showLocationPicker && (
             <>

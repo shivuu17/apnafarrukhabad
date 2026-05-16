@@ -19,7 +19,12 @@ export function AuthProvider({ children }) {
       .getCurrentUser(token)
       .then((u) => {
         if (!mounted) return;
-        if (u) setUser(u);
+        if (u) {
+          setUser(u)
+          if (u.username) {
+            authService.syncUsernameRegistry(u.id, u.username).catch(() => {})
+          }
+        }
       })
       .catch(() => {})
       .finally(() => mounted && setLoading(false));
@@ -48,6 +53,9 @@ export function AuthProvider({ children }) {
     const updated = await authService.updateUserProfile(user.id, payload)
     // refresh local user state with returned object
     setUser((prev) => ({ ...(prev || {}), ...(updated || {}) }))
+    if (updated?.username) {
+      authService.syncUsernameRegistry(user.id, updated.username).catch(() => {})
+    }
     return updated
   }, [user])
 

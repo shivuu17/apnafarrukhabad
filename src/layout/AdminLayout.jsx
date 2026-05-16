@@ -22,12 +22,14 @@ import useAuth from '../hooks/useAuth'
 const navGroups = [
   { label: 'Overview', to: '/admin', icon: LayoutDashboard },
   { label: 'News Requests', to: '/admin/news-requests', icon: Newspaper },
+    { label: 'Published News', to: '/admin/published-news', icon: Newspaper },
   { label: 'Breaking Alerts', to: '/admin/breaking-alerts', icon: TriangleAlert },
   { label: 'Villages', to: '/admin/villages', icon: MapPinned },
   { label: 'Users', to: '/admin/users', icon: Users },
   { label: 'Reports', to: '/admin/reports', icon: BellRing },
   { label: 'Analytics', to: '/admin/analytics', icon: LineChart },
   { label: 'Revenue', to: '/admin/revenue', icon: Wallet },
+  { label: 'Feedback', to: '/admin/feedback', icon: BellRing },
   { label: 'Settings', to: '/admin/settings', icon: Settings2 },
 ]
 
@@ -55,6 +57,7 @@ function AdminLayout() {
     if (location.pathname.includes('/users')) return 'Users'
     if (location.pathname.includes('/reports')) return 'Reports'
     if (location.pathname.includes('/news-requests')) return 'News Requests'
+    if (location.pathname.includes('/published-news')) return 'Published News'
     if (location.pathname.includes('/analytics')) return 'Analytics'
     if (location.pathname.includes('/revenue')) return 'Revenue'
     if (location.pathname.includes('/settings')) return 'Settings'

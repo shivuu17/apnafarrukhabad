@@ -34,6 +34,13 @@ export async function checkUsernameAvailability(username, excludeUid) {
   throw new Error('Username availability check not supported by adapter')
 }
 
+export async function syncUsernameRegistry(uid, username) {
+  if (typeof adapter.syncUsernameRegistry === 'function') {
+    return adapter.syncUsernameRegistry(uid, username)
+  }
+  throw new Error('Username registry sync not supported by adapter')
+}
+
 export async function resetPassword({ email }) {
   if (typeof adapter.resetPassword === 'function') {
     return adapter.resetPassword({ email });
@@ -76,4 +83,4 @@ export async function verifyPhoneCode(phone, otp, userId) {
   throw new Error('Phone verification not supported by adapter');
 }
 
-export default { login, signup, logout, getCurrentUser, updateUserProfile, checkUsernameAvailability, resetPassword, deleteAccount, sendEmailVerificationCode, verifyEmailCode, sendPhoneVerificationCode, verifyPhoneCode };
+export default { login, signup, logout, getCurrentUser, updateUserProfile, checkUsernameAvailability, syncUsernameRegistry, resetPassword, deleteAccount, sendEmailVerificationCode, verifyEmailCode, sendPhoneVerificationCode, verifyPhoneCode };

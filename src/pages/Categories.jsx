@@ -1,39 +1,65 @@
 import { motion } from 'framer-motion'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import MobileNav from '../components/MobileNav'
 import SectionHeader from '../components/SectionHeader'
 import { useLanguage } from '../contexts/LanguageContext'
+import { getApprovedSubmissions, subscribeToModerationChanges } from '../services/mediaModeration.service'
+import { CATEGORY_META, getCategorySlugFromLabel, normalizeCategory } from '../utils/categoryUtils'
 
 function Categories() {
   const { t } = useLanguage()
   const navigate = useNavigate()
-  
-  const getCategorySlug = (categoryName) => {
-    const slugMap = {
-      'agriculture': 'agriculture',
-      'health': 'health',
-      'education': 'education',
-      'business': 'business',
-      'sports': 'sports',
-      'government': 'government',
-      'mandiRates': 'commodities',
-      'weather': 'weather'
+  const [newsItems, setNewsItems] = useState([])
+
+  useEffect(() => {
+    let mounted = true
+
+    const loadNews = async () => {
+      try {
+        const approved = await getApprovedSubmissions()
+        if (mounted) setNewsItems(approved || [])
+      } catch {
+        if (mounted) setNewsItems([])
+      }
     }
-    return slugMap[categoryName] || categoryName.toLowerCase()
-  }
-  
-  const categories = [
-    { id: 1, name: t('agriculture'), icon: '🌾', color: 'from-green-50 to-emerald-50', count: '245 ' + t('stories') },
-    { id: 2, name: t('health'), icon: '⚕️', color: 'from-blue-50 to-sky-50', count: '128 ' + t('stories') },
-    { id: 3, name: t('education'), icon: '📚', color: 'from-yellow-50 to-amber-50', count: '189 ' + t('stories') },
-    { id: 4, name: t('business'), icon: '💼', color: 'from-purple-50 to-indigo-50', count: '156 ' + t('stories') },
-    { id: 5, name: t('sports'), icon: '⚽', color: 'from-red-50 to-rose-50', count: '93 ' + t('stories') },
-    { id: 6, name: t('government'), icon: '🏛️', color: 'from-orange-50 to-amber-50', count: '267 ' + t('stories') },
-    { id: 7, name: t('mandiRates'), icon: '💹', color: 'from-cyan-50 to-blue-50', count: '312 ' + t('stories') },
-    { id: 8, name: t('weather'), icon: '🌤️', color: 'from-teal-50 to-cyan-50', count: '89 ' + t('stories') },
-  ]
+
+    loadNews()
+
+    const unsubscribe = subscribeToModerationChanges((state) => {
+      if (mounted) setNewsItems(state.approved || [])
+    })
+
+    return () => {
+      mounted = false
+      if (unsubscribe) unsubscribe()
+    }
+  }, [])
+
+  const categoryCounts = useMemo(() => {
+    const counts = {}
+    newsItems.forEach((item) => {
+      const slug = normalizeCategory(item.category)
+      counts[slug] = (counts[slug] || 0) + 1
+    })
+    return counts
+  }, [newsItems])
+
+  const categoryOrder = ['agriculture', 'health', 'education', 'business', 'sports', 'government', 'commodities', 'weather']
+
+  const categories = categoryOrder.map((slug, index) => {
+    const meta = CATEGORY_META[slug]
+    return {
+      id: index + 1,
+      slug,
+      name: meta.label,
+      icon: meta.icon,
+      color: meta.color,
+      count: `${categoryCounts[slug] || 0} ${t('stories')}`,
+    }
+  })
 
   return (
     <div className="min-h-screen bg-[#f7f8f4] pb-6 sm:pb-8">
@@ -45,7 +71,7 @@ function Categories() {
             {categories.map((cat, index) => (
               <motion.button
                 key={cat.id}
-                onClick={() => navigate(`/category/${getCategorySlug(cat.name)}`)}
+                onClick={() => navigate(`/category/${getCategorySlugFromLabel(cat.slug)}`)}
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 whileTap={{ scale: 0.95 }}

@@ -3,6 +3,7 @@ import { MapPin, Users, FileText, Bell, Globe, Camera, Play, MessageCircle, Mail
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import AFLogo from '../assets/AF.png'
 import { Modal } from './ui/Modals'
+import FeedbackForm from './FeedbackForm'
 import { Input } from './ui/FormInputs'
 import { Button } from './ui/Button'
 import useAuth from '../hooks/useAuth'
@@ -14,6 +15,8 @@ function Footer() {
   const location = useLocation()
   const { login } = useAuth()
   const [showAdminLogin, setShowAdminLogin] = useState(false)
+  const [showFeedback, setShowFeedback] = useState(false)
+  const [feedbackThanks, setFeedbackThanks] = useState(false)
   const [adminEmail, setAdminEmail] = useState('')
   const [adminPassword, setAdminPassword] = useState('')
   const [adminLoginLoading, setAdminLoginLoading] = useState(false)
@@ -141,6 +144,9 @@ function Footer() {
                   <Mail size={18} />
                 </button>
               </div>
+              <div className="mt-6">
+                <button onClick={() => setShowFeedback(true)} className="inline-block bg-white text-emerald-700 px-4 py-2 rounded-md font-semibold">Give Feedback</button>
+              </div>
             </div>
 
             {/* Quick Links */}
@@ -234,6 +240,19 @@ function Footer() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      <Modal isOpen={showFeedback} onClose={() => { setShowFeedback(false); setFeedbackThanks(false) }} title="Send Feedback" size="md">
+        {!feedbackThanks ? (
+          <FeedbackForm onSubmitted={() => setFeedbackThanks(true)} initialPagePath={location.pathname} />
+        ) : (
+          <div className="space-y-4">
+            <p className="text-sm">Thanks for your feedback — we appreciate it.</p>
+            <div className="flex justify-end">
+              <button onClick={() => { setShowFeedback(false); setFeedbackThanks(false) }} className="px-4 py-2 rounded-lg bg-green-600 text-white">Close</button>
+            </div>
+          </div>
+        )}
       </Modal>
     </footer>
   )

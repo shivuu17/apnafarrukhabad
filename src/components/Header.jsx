@@ -2,7 +2,7 @@ import { Menu, Bell, Search, ChevronDown, LogOut, User } from 'lucide-react'
 import { motion } from 'framer-motion'
 import AFLogo from '../assets/AF.png'
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useLanguage } from '../contexts/LanguageContext'
 import useAuth from '../hooks/useAuth'
 import useWeather from '../hooks/useWeather'
@@ -10,6 +10,7 @@ import { getWeatherDisplayIcon } from '../services/weather.service'
 
 function Header({ scrolled }) {
   const navigate = useNavigate()
+  const location = useLocation()
   const { language, toggleLanguage, t } = useLanguage()
   const { user, logout } = useAuth()
   const { weather } = useWeather({ refreshMs: 15 * 60 * 1000 })
@@ -68,6 +69,13 @@ function Header({ scrolled }) {
   const handleNavClick = (item) => {
     const handler = NAV_HANDLERS[item]
     if (handler) handler()
+  }
+
+  const navItemClass = (path) => {
+    const active = location.pathname === path || (path !== '/' && location.pathname.startsWith(path))
+    return active
+      ? 'text-[#0f6a2f] underline decoration-2 underline-offset-8'
+      : 'transition hover:opacity-75'
   }
 
   return (
@@ -145,7 +153,7 @@ function Header({ scrolled }) {
                 <motion.button 
                   whileTap={{ scale: 0.95 }}
                   onClick={() => handleNavClick(t('home'))}
-                  className="text-[#0f6a2f] transition hover:opacity-75"
+                  className={navItemClass('/')}
                 >
                   {t('home')}
                 </motion.button>
@@ -154,7 +162,7 @@ function Header({ scrolled }) {
                 <motion.button
                   whileTap={{ scale: 0.95 }}
                   onClick={() => handleNavClick(t('news'))}
-                  className="transition hover:opacity-75"
+                  className={navItemClass('/news')}
                 >
                   {t('news')}
                 </motion.button>
@@ -163,7 +171,7 @@ function Header({ scrolled }) {
                 <motion.button
                   whileTap={{ scale: 0.95 }}
                   onClick={() => handleNavClick(t('categories'))}
-                  className="flex items-center gap-1 transition hover:opacity-75"
+                  className={`${navItemClass('/categories')} flex items-center gap-1`}
                 >
                   {t('categories')} <span className="text-xs">▾</span>
                 </motion.button>
@@ -173,7 +181,7 @@ function Header({ scrolled }) {
                   <motion.button
                     whileTap={{ scale: 0.95 }}
                     onClick={() => setVillagesMenuOpen((open) => !open)}
-                    className="flex items-center gap-1 transition hover:opacity-75"
+                    className={`${navItemClass('/villages')} flex items-center gap-1`}
                   >
                     {t('villages')} <ChevronDown size={14} />
                   </motion.button>
@@ -198,7 +206,7 @@ function Header({ scrolled }) {
                 <motion.button
                   whileTap={{ scale: 0.95 }}
                   onClick={() => handleNavClick(t('report'))}
-                  className="transition hover:opacity-75"
+                  className={navItemClass('/report')}
                 >
                   {t('report')}
                 </motion.button>
@@ -207,7 +215,7 @@ function Header({ scrolled }) {
                 <motion.button
                   whileTap={{ scale: 0.95 }}
                   onClick={() => handleNavClick(t('trending'))}
-                  className="transition hover:opacity-75"
+                  className={navItemClass('/trending')}
                 >
                   {t('trending')}
                 </motion.button>

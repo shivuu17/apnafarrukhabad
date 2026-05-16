@@ -2,7 +2,7 @@ import React from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import useAuth from '../hooks/useAuth'
 
-const isAdminUser = (user) => {
+export const isAdminUser = (user) => {
   const role = String(user?.role || '').trim().toLowerCase()
   return role === 'admin' || role === 'superadmin' || role === 'moderator' || Boolean(user?.isAdmin)
 }

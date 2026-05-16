@@ -8,6 +8,7 @@ import CommonPageShell from '../../components/CommonPageShell'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { isAdminUser } from '../../layout/RouteGuards'
 
 const schema = z.object({
   email: z.string().email('Enter a valid email'),
@@ -30,6 +31,11 @@ export default function Login() {
     try {
       const result = await login(values)
       showToast('Logged in successfully', 'success')
+
+      if (isAdminUser(result.user)) {
+        navigate('/admin')
+        return
+      }
       
       // Check if profile is completed
       if (!result.user?.profileCompleted) {

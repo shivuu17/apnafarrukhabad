@@ -8,10 +8,12 @@ import { useLanguage } from '../contexts/LanguageContext'
 import ImageWithFallback from '../components/ImageWithFallback'
 import { useEffect, useState } from 'react'
 import { getApprovedSubmissions, subscribeToModerationChanges } from '../services/mediaModeration.service'
+import { Modal } from '../components/ui/Modals'
 
 function News() {
   const { t } = useLanguage()
   const [newsItems, setNewsItems] = useState([])
+  const [selectedNews, setSelectedNews] = useState(null)
 
   useEffect(() => {
     let mounted = true
@@ -64,6 +66,8 @@ function News() {
     }
   }
 
+  const closeStory = () => setSelectedNews(null)
+
   return (
     <div className="min-h-screen bg-[#f7f8f4] pb-6 sm:pb-8">
       <Header scrolled={false} />
@@ -100,7 +104,7 @@ function News() {
                   <div className="mt-3 flex flex-col gap-2">
                     <motion.button
                       whileTap={{ scale: 0.95 }}
-                      onClick={() => alert(`📰 Reading: ${item.title}`)}
+                      onClick={() => setSelectedNews(item)}
                       className="w-full rounded-lg bg-[#0f6a2f] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[#0b5a28]"
                     >
                       {t('readMore')}
@@ -120,6 +124,46 @@ function News() {
           </div>
         </div>
       </main>
+
+      {selectedNews && (
+        <Modal isOpen={Boolean(selectedNews)} onClose={closeStory} title={selectedNews.title} size="lg">
+          <div className="space-y-4">
+            {selectedNews.imageUrl ? (
+              <ImageWithFallback src={selectedNews.imageUrl} alt={selectedNews.title} className="h-56 w-full rounded-2xl object-cover" />
+            ) : null}
+
+            <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+              <span className="rounded-full bg-agri-50 px-2.5 py-1 font-bold text-agri-700">
+                {selectedNews.category || 'News'}
+              </span>
+              <span>{selectedNews.village || selectedNews.locationName || 'Farrukhabad'}</span>
+              <span>{selectedNews.createdAt ? new Date(selectedNews.createdAt).toLocaleString() : 'Recently approved'}</span>
+            </div>
+
+            <p className="text-sm leading-7 text-slate-700 whitespace-pre-wrap">
+              {selectedNews.description || 'No description available.'}
+            </p>
+
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => handleShare(selectedNews)}
+                className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Share
+              </button>
+              <button
+                type="button"
+                onClick={closeStory}
+                className="rounded-lg bg-[#0f6a2f] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0b5a28]"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
       <Footer />
       <MobileNav />
     </div>

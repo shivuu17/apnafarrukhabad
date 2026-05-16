@@ -1,102 +1,70 @@
 import { useParams } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { getApprovedSubmissions, subscribeToModerationChanges } from '../services/mediaModeration.service'
 import CommonPageShell from '../components/CommonPageShell'
+import ImageWithFallback from '../components/ImageWithFallback'
+import { getCategoryDisplay, normalizeCategory } from '../utils/categoryUtils'
 
 function CategoryTopic() {
   const { slug } = useParams()
 
-  const categories = {
-    agriculture: {
-      title: 'Agriculture',
-      subtitle: 'Latest farming updates, crop guidance, and mandi news',
-      items: [
-        'Farmers adopted new irrigation practices this week.',
-        'Wheat crop advisory issued for local villages.',
-        'Mandi price updates are stable in the district market.',
-      ],
-    },
-    education: {
-      title: 'Education',
-      subtitle: 'School news, exams, and learning updates',
-      items: [
-        'Admissions and scholarship updates are now live.',
-        'Local schools shared their exam preparation schedule.',
-        'A new digital learning drive is starting this month.',
-      ],
-    },
-    health: {
-      title: 'Health',
-      subtitle: 'Health camps, alerts, and public service notices',
-      items: [
-        'A free health camp was organized in the village center.',
-        'Doctors advised residents on seasonal illness prevention.',
-        'Vaccination and maternal health awareness programs continue.',
-      ],
-    },
-    infrastructure: {
-      title: 'Infrastructure',
-      subtitle: 'Roads, water, electricity, and civic updates',
-      items: [
-        'Road repair work has begun near the main market area.',
-        'Drainage cleaning is underway in the affected wards.',
-        'Electricity maintenance schedule has been published.',
-      ],
-    },
-    weather: {
-      title: 'Weather',
-      subtitle: 'Forecasts, rain alerts, and climate advisories',
-      items: [
-        'Rain is expected in the evening with cooler winds.',
-        'Humidity levels remain moderate across the district.',
-        'Farmers are advised to check the weather before spraying.',
-      ],
-    },
-    business: {
-      title: 'Business',
-      subtitle: 'Local shops, services, and market movement',
-      items: [
-        'Small businesses reported steady weekend customer traffic.',
-        'New service stalls opened near the transport stand.',
-        'Retailers shared offers ahead of the festive season.',
-      ],
-    },
-    sports: {
-      title: 'Sports',
-      subtitle: 'Matches, tournaments, and youth activities',
-      items: [
-        'Village cricket trials are scheduled for this weekend.',
-        'Students are preparing for the district sports meet.',
-        'A friendly volleyball tournament starts tomorrow.',
-      ],
-    },
-    government: {
-      title: 'Government',
-      subtitle: 'Policy updates, announcements, and public notices',
-      items: [
-        'New government schemes launched for farmer support this quarter.',
-        'Officials announced upcoming development projects in districts.',
-        'Public notice issued for application submissions by next week.',
-      ],
-    },
-    commodities: {
-      title: 'Mandi Rates',
-      subtitle: 'Market prices, trading updates, and commodity news',
-      items: [
-        'Wheat prices showed an upward trend in the mandi this week.',
-        'Rice trading volume increased with better quality produce.',
-        'Vegetable prices stabilized after recent market fluctuations.',
-      ],
-    },
-  }
+  const [newsItems, setNewsItems] = useState([])
 
-  const category = categories[slug] || categories.agriculture
+  useEffect(() => {
+    let mounted = true
+
+    const loadNews = async () => {
+      try {
+        const approved = await getApprovedSubmissions()
+        if (mounted) setNewsItems(approved || [])
+      } catch {
+        if (mounted) setNewsItems([])
+      }
+    }
+
+    loadNews()
+
+    const unsubscribe = subscribeToModerationChanges((state) => {
+      if (mounted) setNewsItems(state.approved || [])
+    })
+
+    return () => {
+      mounted = false
+      if (unsubscribe) unsubscribe()
+    }
+  }, [])
+
+  const category = getCategoryDisplay(slug)
+  const filteredItems = useMemo(() => {
+    return newsItems.filter((item) => normalizeCategory(item.category) === normalizeCategory(slug))
+  }, [newsItems, slug])
 
   return (
     <CommonPageShell title={category.title} subtitle={category.subtitle}>
-      <div className="grid gap-4 lg:grid-cols-3">
-        {category.items.map((item, index) => (
-          <div key={index} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
-            <p className="text-sm leading-6 text-slate-600">{item}</p>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {filteredItems.length === 0 ? (
+          <div className="col-span-full rounded-2xl border border-dashed border-slate-200 bg-white p-6 text-center shadow-soft">
+            <p className="text-sm font-semibold text-slate-700">No approved news found in this category yet.</p>
+            <p className="mt-1 text-xs text-slate-500">Published reports will show up here after admin approval.</p>
           </div>
+        ) : filteredItems.map((item) => (
+          <article key={item.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft">
+            {item.imageUrl ? (
+              <ImageWithFallback src={item.imageUrl} alt={item.title} className="h-40 w-full object-cover" />
+            ) : (
+              <div className="flex h-40 w-full items-center justify-center bg-slate-100 text-slate-400">No image</div>
+            )}
+            <div className="p-4">
+              <div className="flex items-center justify-between gap-2 text-xs text-slate-500">
+                <span className="rounded-full bg-emerald-50 px-2.5 py-1 font-semibold text-emerald-700">
+                  {category.title}
+                </span>
+                <span>{item.createdAt ? new Date(item.createdAt).toLocaleDateString() : 'Recently approved'}</span>
+              </div>
+              <h3 className="mt-2 text-sm font-extrabold leading-6 text-slate-900">{item.title}</h3>
+              <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-600">{item.description}</p>
+            </div>
+          </article>
         ))}
       </div>
     </CommonPageShell>

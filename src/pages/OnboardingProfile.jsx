@@ -9,6 +9,7 @@ import { Button } from '../components/ui/Button'
 import { Avatar } from '../components/Layout'
 import useAuth from '../hooks/useAuth'
 import cloudinary from '../services/cloudinary.service'
+import { compressImage } from '../utils/imageCompress'
 import useLocation from '../hooks/useLocation'
 import LocationPermissionModal from '../components/location/LocationPermissionModal'
 import LocationConfirmCard from '../components/location/LocationConfirmCard'
@@ -155,7 +156,14 @@ export default function OnboardingProfile() {
     if (!file) return
     setUploading(true)
     try {
-      const res = await cloudinary.uploadImage(file)
+      let fileToUpload = file
+      try {
+        fileToUpload = await compressImage(file, { maxSize: 300 * 1024 })
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.warn('Avatar compression failed, uploading original', e)
+      }
+      const res = await cloudinary.uploadImage(fileToUpload)
       setAvatarPreview(res.secureUrl)
       setValue('avatar', res.secureUrl)
     } catch (err) {

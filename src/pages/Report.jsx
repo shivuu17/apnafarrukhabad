@@ -15,6 +15,7 @@ import LocationConfirmCard from '../components/location/LocationConfirmCard'
 import LocationPicker from '../components/location/LocationPicker'
 import { BottomSheet, Modal } from '../components/ui/Modals'
 import { buildDisplayName } from '../services/locationService'
+import { compressImage } from '../utils/imageCompress'
 
 function Report() {
   const { t } = useLanguage()
@@ -152,8 +153,18 @@ function Report() {
         setImageError('Image upload is currently unavailable. Please try again later.')
         setUploadedImage(null)
       } else {
+        // compress image to ~300KB before uploading
+        let fileToUpload = file
+        try {
+          fileToUpload = await compressImage(file, { maxSize: 300 * 1024 })
+        } catch (e) {
+          // compression failed; continue with original file
+          // eslint-disable-next-line no-console
+          console.warn('Image compression failed, uploading original', e)
+        }
+
         const cloud = await import('../services/cloudinary.service')
-        const result = await cloud.uploadImage(file)
+        const result = await cloud.uploadImage(fileToUpload)
         setUploadedImage(result)
       }
     } catch (error) {
