@@ -17,7 +17,13 @@ function Header({ scrolled }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [villagesMenuOpen, setVillagesMenuOpen] = useState(false)
   const [profileMenuOpen, setProfileMenuOpen] = useState(false)
-  const isAdmin = ['admin', 'superadmin', 'moderator'].includes(String(user?.role || '').trim().toLowerCase()) || Boolean(user?.isAdmin)
+  const adminEmails = String(import.meta.env.VITE_ADMIN_EMAILS || import.meta.env.VITE_ADMIN_EMAIL || '')
+    .split(/[\s,;]+/)
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean)
+  const isAdmin = ['admin', 'superadmin', 'moderator'].includes(String(user?.role || '').trim().toLowerCase())
+    || Boolean(user?.isAdmin)
+    || (user?.email && adminEmails.includes(String(user.email).trim().toLowerCase()))
 
   const handleSearch = () => navigate('/news')
   const handleAbout = () => navigate('/about')
@@ -370,7 +376,6 @@ function Header({ scrolled }) {
                 <div className="space-y-2">
                   <div className="rounded-lg bg-emerald-50 p-3">
                     <p className="text-sm font-bold text-emerald-700">{user.name}</p>
-                    <p className="text-xs text-slate-600">{user.email}</p>
                     {isAdmin && <p className="mt-1 text-xs font-semibold text-emerald-700">👨‍💼 Admin</p>}
                   </div>
                   {isAdmin && (

@@ -1,61 +1,193 @@
-# ApnaFarrukhabad - Premium Mobile-First Community Platform
+# ApnaFarrukhabad
 
-A modern, responsive district-level community platform for Farrukhabad, Uttar Pradesh, built with React, Tailwind CSS, and Framer Motion.
+District-first digital platform for Farrukhabad, Uttar Pradesh. This application combines local news, civic reporting, agriculture intelligence, weather alerts, video content, and community workflows in a mobile-first web experience.
 
-## Quick Start
+## 1) What is this project?
 
-```bash
-npm install
-npm run dev
-```
+ApnaFarrukhabad is a React-based community platform designed to centralize district-level information and participation.
 
-Opens at **http://localhost:5173**
+It enables:
 
-## Features
+- Citizens to discover local updates quickly.
+- Residents to submit news/incidents with image proof.
+- Admin teams to moderate and publish submissions.
+- Farmers to access mandi prices, weather signals, and practical insights.
 
-✅ Mobile-first responsive design (390px+)  
-✅ Premium glassmorphism UI with smooth animations  
-✅ Live feed with infinite scroll & skeleton loaders  
-✅ Community incident reporting  
-✅ Farming intelligence dashboard  
-✅ Live mandi rates with ticker  
-✅ Weather + emergency alerts  
-✅ Village explorer  
-✅ Video reels  
-✅ Local marketplace  
-✅ Sticky mobile bottom navigation  
+## 2) Why does this exist?
+
+Local communities often rely on fragmented channels for updates (social media forwards, isolated groups, and word-of-mouth). This creates trust, speed, and discoverability gaps.
+
+ApnaFarrukhabad addresses those gaps through:
+
+- A single local information hub.
+- Structured moderation for higher content trust.
+- Mobile-first UX for users with low-end devices and variable network quality.
+- Domain-specific modules for agriculture, villages, alerts, and local commerce.
+
+## 3) How does it work?
+
+High-level workflow:
+
+1. Users browse curated and real-time local sections.
+2. Authenticated users can submit reports from the report flow.
+3. Media is uploaded to Cloudinary from the browser.
+4. Submission enters moderation with pending status.
+5. Admin approves/rejects content from admin tools.
+6. Approved content is surfaced in public sections.
+
+## Core Capabilities
+
+- Mobile-first responsive UI across key pages and sections.
+- Community reporting and moderation workflow.
+- Phone verification flow with Firebase Authentication.
+- News, reels, trending content, and category-based browsing.
+- Farming intelligence and mandi rate modules.
+- Weather and alert sections for local visibility.
+- Marketplace and village exploration modules.
+- Role-aware navigation and admin pages.
 
 ## Tech Stack
 
-- **React 19** - UI library
-- **Vite 8** - Build tool
-- **Tailwind CSS 3** - Styling
-- **Framer Motion** - Animations
-- **Lucide React** - Icons
+### Frontend
+
+- React 19
+- React DOM 19
+- React Router DOM 6
+- Vite 8
+- Tailwind CSS 3
+- Framer Motion
+- Lucide React
+
+### Form and Validation
+
+- React Hook Form
+- Zod
+- @hookform/resolvers
+
+### Backend Services (BaaS and Integrations)
+
+- Firebase (Auth + Firestore + Hosting configuration)
+- Cloudinary (unsigned image uploads)
+
+### Tooling and Quality
+
+- ESLint 10
+- @vitejs/plugin-react
+- PostCSS
+- Autoprefixer
+
+## Architecture Overview
+
+- Frontend SPA built with Vite + React.
+- Routing and guard logic handled in app/layout routing modules.
+- Shared state through React Context for auth, language, and toasts.
+- Service layer for Firebase, Cloudinary, weather, and API abstractions.
+- Firebase Hosting configured with SPA rewrite to index.html.
 
 ## Project Structure
 
-```
-src/
-├── components/          # All React sections
-├── data/               # Mock data
-├── App.jsx             # Main component
-├── index.css           # Tailwind styles
-└── main.jsx            # Entry point
+```text
+.
+|- src/
+|  |- components/           # Reusable UI and feature sections
+|  |- contexts/             # App-wide state (auth, language, toast)
+|  |- hooks/                # Reusable hooks (auth, location, weather)
+|  |- layout/               # Layouts and route guards
+|  |- pages/                # Route-level pages (user and admin)
+|  |- services/             # External service adapters and integrations
+|  |- utils/                # Utility helpers
+|  |- data/                 # Static/demo datasets
+|  |- App.jsx               # Route composition
+|  |- main.jsx              # App bootstrap
+|  |- index.css             # Global styles and tokens
+|- firebase.json            # Hosting and deploy config
+|- firestore.rules          # Firestore security rules
+|- eslint.config.js         # Lint rules
+|- vite.config.js           # Vite config
 ```
 
-## Commands
+## Getting Started
+
+### Prerequisites
+
+- Node.js 20+
+- npm 10+
+- Firebase CLI (for deployment)
+
+### Installation
 
 ```bash
-npm run dev      # Start dev server
-npm run build    # Production build
-npm run preview  # Preview build
-npm run lint     # Run ESLint
+npm install
 ```
 
-## Firebase Hosting Deploy
+### Environment Configuration
 
-The project is set up for Firebase Hosting with SPA rewrites and a build predeploy step.
+Copy the environment template and update values:
+
+```bash
+cp .env.example .env
+```
+
+Recommended variables:
+
+```bash
+# Cloudinary
+VITE_CLOUDINARY_CLOUD_NAME=your_cloud_name
+VITE_CLOUDINARY_UPLOAD_PRESET=your_unsigned_preset
+VITE_CLOUDINARY_UPLOAD_FOLDER=apnafarrukhabad/news
+
+# Firebase
+VITE_FIREBASE_API_KEY=your_api_key
+VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your_project_id
+VITE_FIREBASE_STORAGE_BUCKET=your_project.firebasestorage.app
+VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+VITE_FIREBASE_APP_ID=your_app_id
+VITE_FIREBASE_MEASUREMENT_ID=your_measurement_id
+
+# Weather
+VITE_WEATHER_API_KEY=your_weather_api_key
+VITE_WEATHER_LOCATION=Farrukhabad
+VITE_WEATHER_LAT=27.3913
+VITE_WEATHER_LON=79.5792
+VITE_WEATHER_UNITS=metric
+VITE_WEATHER_LANGUAGE=en
+```
+
+### Run Locally
+
+```bash
+npm run dev
+```
+
+Default local URL: http://localhost:5173
+
+## Available Scripts
+
+```bash
+npm run dev      # Start development server
+npm run build    # Build production bundle
+npm run preview  # Preview production build
+npm run lint     # Run lint checks
+```
+
+## Authentication and Phone Verification
+
+Phone verification uses Firebase Authentication (phone provider). Setup instructions are documented in FIREBASE_PHONE_AUTH_SETUP.md.
+
+## Deployment
+
+Firebase Hosting is configured with:
+
+- Public directory: dist
+- Predeploy build: npm run build
+- SPA rewrites to index.html
+
+Production URL:
+
+- https://apna-farrukhabad.web.app/
+
+Deploy steps:
 
 ```bash
 firebase login
@@ -63,64 +195,26 @@ firebase use apna-farrukhabad
 firebase deploy
 ```
 
-The hosting build output is `dist`, so `firebase deploy` will publish the Vite production build after running `npm run build`.
+## Security and Quality Notes
 
-## Cloudinary Image Workflow
+- Firestore rules are maintained in firestore.rules.
+- Client-side form validation is implemented with Zod and React Hook Form.
+- Linting enforced through ESLint configuration.
+- Moderation flow is used before surfacing user-generated reports publicly.
 
-News images are uploaded directly from the browser to Cloudinary, then queued for admin approval before they appear on the home page.
+## Documentation
 
-1. Create an unsigned upload preset in Cloudinary.
-2. Add your values to a local `.env` file using `.env.example` as the template.
-3. Open the report form, pick an image, and the app uploads it immediately to Cloudinary.
-4. Submit the report and it enters the moderation queue as pending.
-5. Admin reviews the post in `/admin/moderation` and approves or rejects it.
-6. Approved posts are shown on the home page in the “Admin approved” section.
+- FIREBASE_PHONE_AUTH_SETUP.md: Phone auth onboarding and troubleshooting.
+- WORKFLOW_GUIDE.md: End-to-end user/admin workflow guide.
+- PHASE_2_COMPLETION.md: Milestone notes and delivered scope.
 
-Required env vars:
+## Roadmap Suggestions
 
-```bash
-VITE_CLOUDINARY_CLOUD_NAME=your_cloud_name
-VITE_CLOUDINARY_UPLOAD_PRESET=your_unsigned_upload_preset
-VITE_CLOUDINARY_UPLOAD_FOLDER=apnafarrukhabad/news
-```
+- Add automated tests (unit + integration + e2e).
+- Introduce CI checks for lint, build, and preview smoke tests.
+- Add observability (error tracking and performance monitoring).
+- Add role-based permission hardening and audit logging for admin actions.
 
-## Color Palette
+## License
 
-- **Green (Agriculture):** #1d6a45, #2b8f5f
-- **Saffron (Accent):** #e47522, #ef9346
-- **Navy (Headings):** #111f3a
-- **White:** #ffffff
-
-## Components
-
-- **Header** - Sticky nav with search, notifications, profile
-- **Hero** - Featured banner with CTAs & animated cards
-- **Quick Access** - 8-card grid for main actions
-- **Live Feed** - Infinite scroll community updates
-- **Community CTA** - "Your Voice Matters" upload section
-- **Farming Intel** - 6 agriculture dashboard cards
-- **Mandi Rates** - Live commodity price cards with ticker
-- **Weather & Alerts** - 6 info widgets
-- **Village Explorer** - 4-card village grid
-- **Reels** - Vertical video card feed
-- **Marketplace** - Buy/sell equipment & crops
-- **Trust Stats** - Community metrics
-- **Mobile Nav** - 5-tab sticky bottom navigation
-
-## Performance
-
-- Lazy image loading
-- Skeleton loaders
-- Framer Motion viewport constraints
-- Intersection Observer for pagination
-- Optimized image URLs
-
-## SEO Ready
-
-- Semantic HTML
-- Meta tags & OG content
-- ARIA labels
-- Proper heading hierarchy
-- Mobile viewport
-
-## Made for Farrukhabad ❤️
+No license file is currently defined in this repository. Add a LICENSE file to clarify usage rights for contributors and partners.
